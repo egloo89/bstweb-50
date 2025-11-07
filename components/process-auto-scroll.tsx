@@ -127,12 +127,19 @@ export function ProcessAutoScroll({ steps }: ProcessAutoScrollProps) {
       }
 
       // 초기화 지연 (DOM이 완전히 렌더링될 때까지 대기)
-      setTimeout(() => {
+      const startAutoScroll = () => {
         const currentContainer = containerRef.current
         if (currentContainer && currentContainer.scrollWidth > currentContainer.clientWidth) {
-          animationFrameId = requestAnimationFrame(autoScroll)
+          if (animationFrameId === null) {
+            animationFrameId = requestAnimationFrame(autoScroll)
+          }
+        } else {
+          // 재시도
+          setTimeout(startAutoScroll, 200)
         }
-      }, 800)
+      }
+      
+      setTimeout(startAutoScroll, 1000)
 
       handleReducedMotionChange = (event: MediaQueryListEvent) => {
         const currentContainer = containerRef.current
@@ -185,7 +192,16 @@ export function ProcessAutoScroll({ steps }: ProcessAutoScrollProps) {
     <div
       ref={containerRef}
       className="flex gap-6 overflow-x-auto scrollbar-hide pb-4 pt-8"
-      style={{ scrollbarWidth: "none", msOverflowStyle: "none", WebkitOverflowScrolling: "touch" }}
+      style={{ 
+        scrollbarWidth: "none", 
+        msOverflowStyle: "none", 
+        WebkitOverflowScrolling: "touch",
+        overflowX: "auto",
+        overflowY: "hidden",
+        display: "flex",
+        flexDirection: "row",
+        flexWrap: "nowrap"
+      }}
     >
       {[0, 1].map((iteration) => (
         <div key={iteration} className="flex gap-6">
