@@ -22,21 +22,24 @@ export function ProcessAutoScroll({ steps }: ProcessAutoScrollProps) {
     const container = containerRef.current
     if (!container) return
 
-    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)")
-    if (prefersReducedMotion.matches) {
-      return
-    }
-
-    if (container.scrollWidth <= container.clientWidth) {
-      return
-    }
-
     let animationFrameId: number | null = null
-    let scrollPosition = container.scrollLeft
-    const singleSetWidth = container.scrollWidth / 2
+    let initTimeout: NodeJS.Timeout | null = null
+    let retryTimeout: NodeJS.Timeout | null = null
+    let retryCount = 0
+    const MAX_RETRIES = 30
+
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)")
+    
+    let scrollPosition = 0
+    let singleSetWidth = 0
     let isHovering = false
     let isUserScrolling = false
     let resumeTimeout: NodeJS.Timeout | null = null
+    let handleMouseEnter: (() => void) | null = null
+    let handleMouseLeave: (() => void) | null = null
+    let handleScroll: (() => void) | null = null
+    let handleVisibilityChange: (() => void) | null = null
+    let handleReducedMotionChange: ((event: MediaQueryListEvent) => void) | null = null
 
     const cancelResumeTimeout = () => {
       if (resumeTimeout) {
@@ -45,74 +48,136 @@ export function ProcessAutoScroll({ steps }: ProcessAutoScrollProps) {
       }
     }
 
-    const handleMouseEnter = () => {
-      isHovering = true
-    }
-
-    const handleMouseLeave = () => {
-      isHovering = false
-    }
-
-    const handleScroll = () => {
-      scrollPosition = container.scrollLeft
-      isUserScrolling = true
-      cancelResumeTimeout()
-      resumeTimeout = setTimeout(() => {
-        isUserScrolling = false
-      }, 1500)
-    }
-
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
+    const autoScroll = () => {
+      const currentContainer = containerRef.current
+      if (!currentContainer) {
         if (animationFrameId !== null) {
           cancelAnimationFrame(animationFrameId)
           animationFrameId = null
         }
-      } else if (animationFrameId === null) {
-        animationFrameId = requestAnimationFrame(autoScroll)
+        return
       }
-    }
 
-    const autoScroll = () => {
       if (!isHovering && !isUserScrolling) {
         scrollPosition += SCROLL_SPEED
         if (scrollPosition >= singleSetWidth) {
           scrollPosition -= singleSetWidth
         }
-        container.scrollLeft = scrollPosition
+        currentContainer.scrollLeft = scrollPosition
       }
 
       animationFrameId = requestAnimationFrame(autoScroll)
     }
 
-    container.addEventListener("mouseenter", handleMouseEnter)
-    container.addEventListener("mouseleave", handleMouseLeave)
-    container.addEventListener("scroll", handleScroll)
-    document.addEventListener("visibilitychange", handleVisibilityChange)
+    const initAutoScroll = () => {
+      const currentContainer = containerRef.current
+      if (!currentContainer) return
 
-    animationFrameId = requestAnimationFrame(autoScroll)
-
-    const handleReducedMotionChange = (event: MediaQueryListEvent) => {
-      if (event.matches && animationFrameId !== null) {
-        cancelAnimationFrame(animationFrameId)
-        animationFrameId = null
-      } else if (!event.matches && animationFrameId === null) {
-        animationFrameId = requestAnimationFrame(autoScroll)
+      // 스크롤 컨테이너의 크기가 제대로 계산될 때까지 대기
+      if (currentContainer.scrollWidth <= currentContainer.clientWidth || currentContainer.scrollWidth === 0) {
+        retryCount++
+        if (retryCount < MAX_RETRIES) {
+          retryTimeout = setTimeout(initAutoScroll, 150)
+        }
+        return
       }
+
+      if (prefersReducedMotion.matches) {
+        return
+      }
+
+      scrollPosition = 0
+      singleSetWidth = currentContainer.scrollWidth / 2
+
+      handleMouseEnter = () => {
+        isHovering = true
+      }
+
+      handleMouseLeave = () => {
+        isHovering = false
+      }
+
+      handleScroll = () => {
+        if (currentContainer) {
+          scrollPosition = currentContainer.scrollLeft
+          isUserScrolling = true
+          cancelResumeTimeout()
+          resumeTimeout = setTimeout(() => {
+            isUserScrolling = false
+          }, 1500)
+        }
+      }
+
+      handleVisibilityChange = () => {
+        if (document.hidden) {
+          if (animationFrameId !== null) {
+            cancelAnimationFrame(animationFrameId)
+            animationFrameId = null
+          }
+        } else if (animationFrameId === null && currentContainer) {
+          animationFrameId = requestAnimationFrame(autoScroll)
+        }
+      }
+
+      if (handleMouseEnter && handleMouseLeave && handleScroll && handleVisibilityChange) {
+        currentContainer.addEventListener("mouseenter", handleMouseEnter)
+        currentContainer.addEventListener("mouseleave", handleMouseLeave)
+        currentContainer.addEventListener("scroll", handleScroll)
+        document.addEventListener("visibilitychange", handleVisibilityChange)
+      }
+
+      // 초기화 지연 (DOM이 완전히 렌더링될 때까지 대기)
+      setTimeout(() => {
+        const currentContainer = containerRef.current
+        if (currentContainer && currentContainer.scrollWidth > currentContainer.clientWidth) {
+          animationFrameId = requestAnimationFrame(autoScroll)
+        }
+      }, 800)
+
+      handleReducedMotionChange = (event: MediaQueryListEvent) => {
+        const currentContainer = containerRef.current
+        if (event.matches && animationFrameId !== null) {
+          cancelAnimationFrame(animationFrameId)
+          animationFrameId = null
+        } else if (!event.matches && animationFrameId === null && currentContainer) {
+          animationFrameId = requestAnimationFrame(autoScroll)
+        }
+      }
+
+      prefersReducedMotion.addEventListener("change", handleReducedMotionChange)
     }
 
-    prefersReducedMotion.addEventListener("change", handleReducedMotionChange)
+    // DOM이 준비될 때까지 대기
+    if (document.readyState === 'complete') {
+      initAutoScroll()
+    } else {
+      window.addEventListener('load', initAutoScroll)
+      // 폴백: load 이벤트가 이미 발생했을 수 있음
+      initTimeout = setTimeout(initAutoScroll, 1000)
+    }
 
     return () => {
       if (animationFrameId !== null) {
         cancelAnimationFrame(animationFrameId)
       }
+      if (initTimeout) {
+        clearTimeout(initTimeout)
+      }
+      if (retryTimeout) {
+        clearTimeout(retryTimeout)
+      }
       cancelResumeTimeout()
-      container.removeEventListener("mouseenter", handleMouseEnter)
-      container.removeEventListener("mouseleave", handleMouseLeave)
-      container.removeEventListener("scroll", handleScroll)
-      document.removeEventListener("visibilitychange", handleVisibilityChange)
-      prefersReducedMotion.removeEventListener("change", handleReducedMotionChange)
+      const currentContainer = containerRef.current
+      if (currentContainer && handleMouseEnter && handleMouseLeave && handleScroll && handleVisibilityChange) {
+        currentContainer.removeEventListener("mouseenter", handleMouseEnter)
+        currentContainer.removeEventListener("mouseleave", handleMouseLeave)
+        currentContainer.removeEventListener("scroll", handleScroll)
+        document.removeEventListener("visibilitychange", handleVisibilityChange)
+      }
+      if (handleReducedMotionChange) {
+        prefersReducedMotion.removeEventListener("change", handleReducedMotionChange)
+      }
+      window.removeEventListener('load', initAutoScroll)
     }
   }, [steps.length])
 
