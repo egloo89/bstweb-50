@@ -86,13 +86,14 @@ export function ProcessAutoScroll({ steps }: ProcessAutoScrollProps) {
 
       <div
         ref={containerRef}
-        className="flex gap-6 overflow-x-auto scrollbar-hide pb-4 pt-8"
+        className="flex gap-6 overflow-x-auto scrollbar-hide pb-4 pt-8 pl-4"
         style={{
           scrollbarWidth: "none",
           msOverflowStyle: "none",
           WebkitOverflowScrolling: "touch",
           overflowX: "auto",
           overflowY: "hidden",
+          paddingLeft: "1rem",
         }}
       >
         {steps.map((step, index) => (
