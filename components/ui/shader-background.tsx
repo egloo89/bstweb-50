@@ -193,8 +193,8 @@ const ShaderBackground = ({ position = 'fixed' }: ShaderBackgroundProps) => {
     window.addEventListener('resize', resizeCanvas);
     resizeCanvas();
 
-    let startTime = Date.now();
-    let animationFrameId: number | undefined;
+    const startTime = Date.now();
+    let animationFrameId: number | null = null;
 
     const render = () => {
       const currentTime = (Date.now() - startTime) / 1000;
@@ -230,7 +230,7 @@ const ShaderBackground = ({ position = 'fixed' }: ShaderBackgroundProps) => {
 
     return () => {
       window.removeEventListener('resize', resizeCanvas);
-      if (animationFrameId !== undefined) {
+      if (animationFrameId !== null) {
         cancelAnimationFrame(animationFrameId);
       }
     };
