@@ -11,7 +11,7 @@ interface ProcessStep {
 
 interface ProcessAutoScrollProps {
   steps: ProcessStep[]
-  respectReducedMotion?: boolean // prefers-reduced-motion 설정을 존중할지 여부 (기본값: false)
+  respectReducedMotion?: boolean
 }
 
 const SCROLL_SPEED = 0.4
@@ -20,16 +20,15 @@ export function ProcessAutoScroll({ steps, respectReducedMotion = false }: Proce
   const containerRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
-    // 모든 window/document 접근을 useEffect 안에서만
     if (typeof window === 'undefined' || typeof document === 'undefined') return
 
     const container = containerRef.current
     if (!container) return
 
-    // 환경 변수 체크: 프로덕션에서 자동 스크롤이 꺼지지 않도록 확인
-    // 주의: process.env는 클라이언트 사이드에서 접근 가능하지만, 
-    // Next.js에서는 빌드 타임에 인라인되므로 클라이언트 컴포넌트에서는 사용하지 않음
-    // 환경 변수로 인한 자동 스크롤 비활성화는 없음
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)")
+    if (respectReducedMotion && prefersReducedMotion.matches) {
+      return
+    }
 
     let animationFrameId: number | null = null
     let scrollPosition = 0
@@ -38,15 +37,6 @@ export function ProcessAutoScroll({ steps, respectReducedMotion = false }: Proce
     let isUserScrolling = false
     let resumeTimeout: NodeJS.Timeout | null = null
     let isActive = false
-
-    // window 접근을 useEffect 안에서만
-    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)")
-    
-    // respectReducedMotion 옵션이 true일 때만 모션 줄이기 설정을 존중
-    // 기본값은 false이므로 프로덕션에서도 자동 스크롤이 작동함
-    if (respectReducedMotion && prefersReducedMotion.matches) {
-      return
-    }
 
     const cancelResumeTimeout = () => {
       if (resumeTimeout) {
@@ -78,20 +68,13 @@ export function ProcessAutoScroll({ steps, respectReducedMotion = false }: Proce
     const startScrolling = () => {
       if (!container || isActive) return
       
-      // 스타일 확인: overflow-x-auto가 실제로 적용되어 있는지
-      const computedStyle = window.getComputedStyle(container)
-      const overflowX = computedStyle.overflowX
-      
-      if (overflowX !== 'auto' && overflowX !== 'scroll') {
-        // 강제로 overflow-x: auto 적용
-        container.style.overflowX = 'auto'
-        container.style.overflowY = 'hidden'
-      }
+      // 스타일 강제 적용
+      container.style.overflowX = 'auto'
+      container.style.overflowY = 'hidden'
       
       const scrollWidth = container.scrollWidth
       const clientWidth = container.clientWidth
       
-      // 요소 총 너비 > 컨테이너 너비인지 확인
       if (scrollWidth <= clientWidth || scrollWidth === 0) {
         return
       }
@@ -138,12 +121,22 @@ export function ProcessAutoScroll({ steps, respectReducedMotion = false }: Proce
       }
     }
 
-    // 초기화 함수 - 레이아웃 확정 후 시작
+    // 이벤트 리스너 등록
+    container.addEventListener("mouseenter", handleMouseEnter)
+    container.addEventListener("mouseleave", handleMouseLeave)
+    container.addEventListener("scroll", handleScroll)
+    document.addEventListener("visibilitychange", handleVisibilityChange)
+
+    // 초기화 함수 - 여러 시점에서 시도
     const initialize = () => {
       if (!container) return
 
       const tryStart = () => {
         if (!container) return
+
+        // 스타일 강제 적용
+        container.style.overflowX = 'auto'
+        container.style.overflowY = 'hidden'
 
         const scrollWidth = container.scrollWidth
         const clientWidth = container.clientWidth
@@ -155,39 +148,29 @@ export function ProcessAutoScroll({ steps, respectReducedMotion = false }: Proce
         }
       }
 
-      // requestAnimationFrame으로 한 프레임 대기 (레이아웃 확정 후)
-      const rafId = requestAnimationFrame(() => {
-        // 추가로 약간의 지연을 두어 이미지/폰트 로딩 대기
+      // requestAnimationFrame으로 레이아웃 확정 후 시작
+      requestAnimationFrame(() => {
         setTimeout(() => {
           tryStart()
-          // 여러 시점에서 재시도 (이미지/폰트 로딩 완료 대기)
+          // 여러 시점에서 재시도
           setTimeout(tryStart, 200)
           setTimeout(tryStart, 500)
           setTimeout(tryStart, 1000)
+          setTimeout(tryStart, 2000)
         }, 100)
       })
-
-      return rafId
     }
-
-    // 이벤트 리스너 등록
-    container.addEventListener("mouseenter", handleMouseEnter)
-    container.addEventListener("mouseleave", handleMouseLeave)
-    container.addEventListener("scroll", handleScroll)
-    document.addEventListener("visibilitychange", handleVisibilityChange)
 
     // IntersectionObserver로 섹션이 보일 때 시작
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
-            // 레이아웃 확정 후 시작
-            const rafId = requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
               setTimeout(() => {
                 initialize()
-              }, 100)
+              }, 200)
             })
-            return () => cancelAnimationFrame(rafId)
           } else {
             isActive = false
             if (animationFrameId !== null) {
@@ -197,33 +180,35 @@ export function ProcessAutoScroll({ steps, respectReducedMotion = false }: Proce
           }
         })
       },
-      { threshold: 0.1, rootMargin: "50px" }
+      { threshold: 0.1, rootMargin: "100px" }
     )
 
     observer.observe(container)
 
-    // DOM이 준비된 후 초기화 - 레이아웃 확정 후 시작
-    let initRafId: number | null = null
-    
-    if (document.readyState === 'complete' || document.readyState === 'interactive') {
-      initRafId = initialize()
-    } else {
-      window.addEventListener('load', () => {
-        initRafId = initialize()
-      })
-      // 폴백: load 이벤트가 이미 발생했을 수 있음
-      setTimeout(() => {
-        initRafId = initialize()
-      }, 2000)
+    // DOM 준비 후 초기화
+    const startInit = () => {
+      if (document.readyState === 'complete' || document.readyState === 'interactive') {
+        setTimeout(() => {
+          initialize()
+        }, 500)
+      } else {
+        window.addEventListener('load', () => {
+          setTimeout(() => {
+            initialize()
+          }, 500)
+        })
+        setTimeout(() => {
+          initialize()
+        }, 2000)
+      }
     }
+
+    startInit()
 
     return () => {
       isActive = false
       if (animationFrameId !== null) {
         cancelAnimationFrame(animationFrameId)
-      }
-      if (initRafId !== null) {
-        cancelAnimationFrame(initRafId)
       }
       cancelResumeTimeout()
       if (container) {
@@ -234,7 +219,7 @@ export function ProcessAutoScroll({ steps, respectReducedMotion = false }: Proce
       document.removeEventListener("visibilitychange", handleVisibilityChange)
       observer.disconnect()
     }
-  }, [steps.length])
+  }, [steps.length, respectReducedMotion])
 
   return (
     <div
@@ -246,14 +231,13 @@ export function ProcessAutoScroll({ steps, respectReducedMotion = false }: Proce
         WebkitOverflowScrolling: "touch",
         overflowX: "auto",
         overflowY: "hidden",
-        overflow: "auto",
         width: "100%",
         maxWidth: "100%",
         whiteSpace: "nowrap",
       }}
     >
       {[0, 1].map((iteration) => (
-        <div key={iteration} className="flex gap-6" style={{ display: "flex", gap: "1.5rem" }}>
+        <div key={iteration} className="flex gap-6" style={{ display: "flex", gap: "1.5rem", whiteSpace: "nowrap" }}>
           {steps.map((step, index) => (
             <motion.div
               key={`${iteration}-${index}`}
@@ -261,7 +245,7 @@ export function ProcessAutoScroll({ steps, respectReducedMotion = false }: Proce
               whileInView={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.5, delay: index * 0.1 }}
               viewport={{ once: true }}
-              className="flex-shrink-0 w-[320px] md:w-[380px] bg-zinc-900/50 border border-white/10 p-8 rounded-xl relative"
+              className="flex-shrink-0 w-[320px] md:w-[380px] bg-zinc-900/50 border border-white/10 p-8 rounded-xl relative snap-start"
               style={{
                 marginTop: "2rem",
                 flexShrink: 0,
