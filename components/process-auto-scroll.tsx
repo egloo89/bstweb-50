@@ -11,11 +11,12 @@ interface ProcessStep {
 
 interface ProcessAutoScrollProps {
   steps: ProcessStep[]
+  respectReducedMotion?: boolean // prefers-reduced-motion 설정을 존중할지 여부 (기본값: false)
 }
 
 const SCROLL_SPEED = 0.4
 
-export function ProcessAutoScroll({ steps }: ProcessAutoScrollProps) {
+export function ProcessAutoScroll({ steps, respectReducedMotion = false }: ProcessAutoScrollProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
@@ -35,7 +36,9 @@ export function ProcessAutoScroll({ steps }: ProcessAutoScrollProps) {
 
     // window 접근을 useEffect 안에서만
     const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)")
-    if (prefersReducedMotion.matches) {
+    
+    // respectReducedMotion 옵션이 true일 때만 모션 줄이기 설정을 존중
+    if (respectReducedMotion && prefersReducedMotion.matches) {
       return
     }
 
