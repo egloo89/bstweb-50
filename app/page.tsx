@@ -33,6 +33,7 @@ import { useToast } from "@/hooks/use-toast"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 import ShaderBackground from "@/components/ui/shader-background"
+import { ProcessAutoScroll } from "@/components/process-auto-scroll"
 
 export default function Home() {
   const { toast } = useToast()
@@ -43,7 +44,6 @@ export default function Home() {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const heroRef = useRef(null)
-  const processScrollRef = useRef<HTMLDivElement>(null)
   const { scrollYProgress } = useScroll({
     target: heroRef,
     offset: ["start start", "end start"],
@@ -51,128 +51,6 @@ export default function Home() {
 
   const opacity = useTransform(scrollYProgress, [0, 1], [1, 0])
   const scale = useTransform(scrollYProgress, [0, 1], [1, 0.8])
-
-  // Auto scroll for process section
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-
-    let animationFrameId: number | null = null
-    let scrollPosition = 0
-    const SCROLL_SPEED = 0.4 // 픽셀/프레임 - 읽을 수 있는 속도 (0.8배 조정)
-    let isPaused = false
-    let isUserScrolling = false
-    let scrollTimeout: NodeJS.Timeout | null = null
-    let scrollContainer: HTMLDivElement | null = null
-    let handleMouseEnter: (() => void) | null = null
-    let handleMouseLeave: (() => void) | null = null
-    let handleScroll: (() => void) | null = null
-    let initTimeout: NodeJS.Timeout | null = null
-
-    // DOM이 준비될 때까지 대기하는 함수
-    const initAutoScroll = () => {
-      scrollContainer = processScrollRef.current
-      
-      if (!scrollContainer) {
-        // 컨테이너가 아직 준비되지 않았으면 재시도
-        initTimeout = setTimeout(initAutoScroll, 100)
-        return
-      }
-
-      // 스크롤 컨테이너의 크기가 제대로 계산될 때까지 대기
-      if (scrollContainer.scrollWidth <= scrollContainer.clientWidth) {
-        initTimeout = setTimeout(initAutoScroll, 100)
-        return
-      }
-
-      // 마우스 호버 시 일시정지
-      handleMouseEnter = () => {
-        isPaused = true
-      }
-
-      handleMouseLeave = () => {
-        isPaused = false
-      }
-
-      // 사용자 스크롤 감지
-      handleScroll = () => {
-        if (scrollContainer) {
-          scrollPosition = scrollContainer.scrollLeft
-          isUserScrolling = true
-
-          if (scrollTimeout) {
-            clearTimeout(scrollTimeout)
-          }
-
-          scrollTimeout = setTimeout(() => {
-            isUserScrolling = false
-          }, 1500)
-        }
-      }
-
-      if (handleMouseEnter && handleMouseLeave && handleScroll) {
-        scrollContainer.addEventListener('mouseenter', handleMouseEnter)
-        scrollContainer.addEventListener('mouseleave', handleMouseLeave)
-        scrollContainer.addEventListener('scroll', handleScroll)
-      }
-
-      // 자동 스크롤 애니메이션
-      const autoScroll = () => {
-        if (!scrollContainer) {
-          if (animationFrameId !== null) {
-            cancelAnimationFrame(animationFrameId)
-          }
-          return
-        }
-
-        if (!isPaused && !isUserScrolling) {
-          scrollPosition += SCROLL_SPEED
-          const singleSetWidth = scrollContainer.scrollWidth / 2
-
-          // 첫 번째 세트의 끝에 도달하면 처음으로 리셋
-          if (scrollPosition >= singleSetWidth) {
-            scrollPosition = scrollPosition - singleSetWidth
-          }
-
-          scrollContainer.scrollLeft = scrollPosition
-        }
-
-        animationFrameId = requestAnimationFrame(autoScroll)
-      }
-
-      // 초기화 지연 (DOM이 완전히 렌더링될 때까지 대기)
-      setTimeout(() => {
-        if (scrollContainer && scrollContainer.scrollWidth > scrollContainer.clientWidth) {
-          animationFrameId = requestAnimationFrame(autoScroll)
-        }
-      }, 1000)
-    }
-
-    // 페이지 로드 완료 후 초기화
-    if (document.readyState === 'complete') {
-      initAutoScroll()
-    } else {
-      window.addEventListener('load', initAutoScroll)
-    }
-
-    // Cleanup
-    return () => {
-      if (animationFrameId !== null) {
-        cancelAnimationFrame(animationFrameId)
-      }
-      if (scrollTimeout) {
-        clearTimeout(scrollTimeout)
-      }
-      if (initTimeout) {
-        clearTimeout(initTimeout)
-      }
-      if (scrollContainer && handleMouseEnter && handleMouseLeave && handleScroll) {
-        scrollContainer.removeEventListener('mouseenter', handleMouseEnter)
-        scrollContainer.removeEventListener('mouseleave', handleMouseLeave)
-        scrollContainer.removeEventListener('scroll', handleScroll)
-      }
-      window.removeEventListener('load', initAutoScroll)
-    }
-  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -674,48 +552,7 @@ export default function Home() {
             </p>
           </div>
 
-          <div 
-            ref={processScrollRef}
-            className="flex gap-6 overflow-x-auto scrollbar-hide pb-4 pt-8"
-            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}
-          >
-            {/* 원본 카드들 */}
-            {processSteps.map((step, index) => (
-              <motion.div
-                key={`original-${index}`}
-                initial={{ opacity: 0, x: 20 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.5, delay: index * 0.1 }}
-                viewport={{ once: true }}
-                className="flex-shrink-0 w-[320px] md:w-[380px] bg-zinc-900/50 border border-white/10 p-8 rounded-xl relative"
-                style={{ marginTop: '2rem' }}
-              >
-                <div className="absolute -top-4 -left-4 w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-cyan-500 flex items-center justify-center text-black font-bold">
-                  {step.number}
-                </div>
-                <h3 className="text-xl font-bold mb-4 mt-2">{step.title}</h3>
-                <p className="text-gray-400">{step.description}</p>
-              </motion.div>
-            ))}
-            {/* 복제된 카드들 (무한 루프용) */}
-            {processSteps.map((step, index) => (
-              <motion.div
-                key={`duplicate-${index}`}
-                initial={{ opacity: 0, x: 20 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.5, delay: index * 0.1 }}
-                viewport={{ once: true }}
-                className="flex-shrink-0 w-[320px] md:w-[380px] bg-zinc-900/50 border border-white/10 p-8 rounded-xl relative"
-                style={{ marginTop: '2rem' }}
-              >
-                <div className="absolute -top-4 -left-4 w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-cyan-500 flex items-center justify-center text-black font-bold">
-                  {step.number}
-                </div>
-                <h3 className="text-xl font-bold mb-4 mt-2">{step.title}</h3>
-                <p className="text-gray-400">{step.description}</p>
-              </motion.div>
-            ))}
-          </div>
+          <ProcessAutoScroll steps={processSteps} />
         </div>
       </section>
 
