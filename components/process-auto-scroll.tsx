@@ -19,7 +19,8 @@ export function ProcessAutoScroll({ steps }: ProcessAutoScrollProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
-    if (typeof window === 'undefined') return
+    // 모든 window/document 접근을 useEffect 안에서만
+    if (typeof window === 'undefined' || typeof document === 'undefined') return
 
     const container = containerRef.current
     if (!container) return
@@ -32,6 +33,7 @@ export function ProcessAutoScroll({ steps }: ProcessAutoScrollProps) {
     let resumeTimeout: NodeJS.Timeout | null = null
     let isActive = false
 
+    // window 접근을 useEffect 안에서만
     const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)")
     if (prefersReducedMotion.matches) {
       return
@@ -172,7 +174,7 @@ export function ProcessAutoScroll({ steps }: ProcessAutoScrollProps) {
 
     observer.observe(container)
 
-    // DOM이 준비된 후 초기화
+    // DOM이 준비된 후 초기화 - document 접근을 useEffect 안에서만
     if (document.readyState === 'complete' || document.readyState === 'interactive') {
       setTimeout(initialize, 500)
     } else {

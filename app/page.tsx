@@ -33,7 +33,12 @@ import { useToast } from "@/hooks/use-toast"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 import ShaderBackground from "@/components/ui/shader-background"
-import { ProcessAutoScroll } from "@/components/process-auto-scroll"
+import dynamic from "next/dynamic"
+
+const ProcessAutoScroll = dynamic(
+  () => import("@/components/process-auto-scroll").then((mod) => ({ default: mod.ProcessAutoScroll })),
+  { ssr: false }
+)
 
 export default function Home() {
   const { toast } = useToast()
