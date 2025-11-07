@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef } from "react"
 import { motion } from "framer-motion"
 
 interface ProcessStep {
@@ -17,14 +17,9 @@ const SCROLL_SPEED = 0.4
 
 export function ProcessAutoScroll({ steps }: ProcessAutoScrollProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
-  const [isMounted, setIsMounted] = useState(false)
 
   useEffect(() => {
-    setIsMounted(true)
-  }, [])
-
-  useEffect(() => {
-    if (!isMounted || typeof window === 'undefined') return
+    if (typeof window === 'undefined') return
 
     const container = containerRef.current
     if (!container) return
@@ -35,7 +30,7 @@ export function ProcessAutoScroll({ steps }: ProcessAutoScrollProps) {
     let isHovering = false
     let isUserScrolling = false
     let resumeTimeout: NodeJS.Timeout | null = null
-    let isRunning = false
+    let isActive = false
 
     const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)")
     if (prefersReducedMotion.matches) {
@@ -50,7 +45,7 @@ export function ProcessAutoScroll({ steps }: ProcessAutoScrollProps) {
     }
 
     const autoScroll = () => {
-      if (!container || !isRunning) {
+      if (!container || !isActive) {
         if (animationFrameId !== null) {
           cancelAnimationFrame(animationFrameId)
           animationFrameId = null
@@ -70,9 +65,7 @@ export function ProcessAutoScroll({ steps }: ProcessAutoScrollProps) {
     }
 
     const startScrolling = () => {
-      if (isRunning) return
-      
-      if (!container) return
+      if (!container || isActive) return
       
       const scrollWidth = container.scrollWidth
       const clientWidth = container.clientWidth
@@ -86,7 +79,7 @@ export function ProcessAutoScroll({ steps }: ProcessAutoScrollProps) {
         scrollPosition = 0
       }
 
-      isRunning = true
+      isActive = true
       if (animationFrameId === null) {
         animationFrameId = requestAnimationFrame(autoScroll)
       }
@@ -113,7 +106,7 @@ export function ProcessAutoScroll({ steps }: ProcessAutoScrollProps) {
 
     const handleVisibilityChange = () => {
       if (document.hidden) {
-        isRunning = false
+        isActive = false
         if (animationFrameId !== null) {
           cancelAnimationFrame(animationFrameId)
           animationFrameId = null
@@ -123,40 +116,39 @@ export function ProcessAutoScroll({ steps }: ProcessAutoScrollProps) {
       }
     }
 
-    // 초기화 함수
+    // 초기화 함수 - 여러 시점에서 시도
     const initialize = () => {
       if (!container) return
 
-      const checkAndStart = () => {
+      const tryStart = () => {
         if (!container) return
 
         const scrollWidth = container.scrollWidth
         const clientWidth = container.clientWidth
 
         if (scrollWidth > clientWidth && scrollWidth > 0) {
-          container.addEventListener("mouseenter", handleMouseEnter)
-          container.addEventListener("mouseleave", handleMouseLeave)
-          container.addEventListener("scroll", handleScroll)
-          document.addEventListener("visibilitychange", handleVisibilityChange)
-
           singleSetWidth = scrollWidth / 2
           scrollPosition = 0
-
-          // 여러 번 시도하여 확실히 시작
-          setTimeout(() => startScrolling(), 500)
-          setTimeout(() => startScrolling(), 1000)
-          setTimeout(() => startScrolling(), 2000)
-        } else {
-          // 재시도
-          setTimeout(checkAndStart, 300)
+          startScrolling()
         }
       }
 
-      // 여러 시점에서 시도
-      setTimeout(checkAndStart, 500)
-      setTimeout(checkAndStart, 1500)
-      setTimeout(checkAndStart, 3000)
+      // 즉시 시도
+      tryStart()
+
+      // 짧은 지연 후 시도
+      setTimeout(tryStart, 100)
+      setTimeout(tryStart, 300)
+      setTimeout(tryStart, 500)
+      setTimeout(tryStart, 1000)
+      setTimeout(tryStart, 2000)
     }
+
+    // 이벤트 리스너 등록
+    container.addEventListener("mouseenter", handleMouseEnter)
+    container.addEventListener("mouseleave", handleMouseLeave)
+    container.addEventListener("scroll", handleScroll)
+    document.addEventListener("visibilitychange", handleVisibilityChange)
 
     // IntersectionObserver로 섹션이 보일 때 시작
     const observer = new IntersectionObserver(
@@ -164,10 +156,10 @@ export function ProcessAutoScroll({ steps }: ProcessAutoScrollProps) {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
             setTimeout(() => {
-              startScrolling()
-            }, 500)
+              initialize()
+            }, 300)
           } else {
-            isRunning = false
+            isActive = false
             if (animationFrameId !== null) {
               cancelAnimationFrame(animationFrameId)
               animationFrameId = null
@@ -175,17 +167,23 @@ export function ProcessAutoScroll({ steps }: ProcessAutoScrollProps) {
           }
         })
       },
-      { threshold: 0.1, rootMargin: "100px" }
+      { threshold: 0.1, rootMargin: "50px" }
     )
 
-    if (container) {
-      observer.observe(container)
+    observer.observe(container)
+
+    // DOM이 준비된 후 초기화
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+      setTimeout(initialize, 500)
+    } else {
+      window.addEventListener('load', () => {
+        setTimeout(initialize, 500)
+      })
+      setTimeout(initialize, 2000)
     }
 
-    initialize()
-
     return () => {
-      isRunning = false
+      isActive = false
       if (animationFrameId !== null) {
         cancelAnimationFrame(animationFrameId)
       }
@@ -198,7 +196,7 @@ export function ProcessAutoScroll({ steps }: ProcessAutoScrollProps) {
       document.removeEventListener("visibilitychange", handleVisibilityChange)
       observer.disconnect()
     }
-  }, [isMounted, steps.length])
+  }, [steps.length])
 
   return (
     <div
