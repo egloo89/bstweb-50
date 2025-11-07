@@ -54,62 +54,58 @@ export default function Home() {
 
   // Auto scroll for process section
   useEffect(() => {
+    if (typeof window === 'undefined') return
+
     let animationFrameId: number | null = null
+    let scrollPosition = 0
+    const SCROLL_SPEED = 0.4 // 픽셀/프레임 - 읽을 수 있는 속도 (0.8배 조정)
+    let isPaused = false
+    let isUserScrolling = false
     let scrollTimeout: NodeJS.Timeout | null = null
-    let initTimeout: NodeJS.Timeout | null = null
-    let retryTimeout: NodeJS.Timeout | null = null
-    let isInitialized = false
+    let scrollContainer: HTMLDivElement | null = null
     let handleMouseEnter: (() => void) | null = null
     let handleMouseLeave: (() => void) | null = null
     let handleScroll: (() => void) | null = null
-    let scrollContainer: HTMLDivElement | null = null
+    let initTimeout: NodeJS.Timeout | null = null
 
-    // DOM이 완전히 로드될 때까지 대기
+    // DOM이 준비될 때까지 대기하는 함수
     const initAutoScroll = () => {
       scrollContainer = processScrollRef.current
+      
       if (!scrollContainer) {
         // 컨테이너가 아직 준비되지 않았으면 재시도
-        if (!isInitialized) {
-          retryTimeout = setTimeout(initAutoScroll, 100)
-        }
+        initTimeout = setTimeout(initAutoScroll, 100)
         return
       }
 
       // 스크롤 컨테이너의 크기가 제대로 계산될 때까지 대기
       if (scrollContainer.scrollWidth <= scrollContainer.clientWidth) {
-        if (!isInitialized) {
-          retryTimeout = setTimeout(initAutoScroll, 100)
-        }
+        initTimeout = setTimeout(initAutoScroll, 100)
         return
       }
 
-      isInitialized = true
-
-      let scrollPosition = 0
-      const scrollSpeed = 0.24 // 스크롤 속도 (픽셀/프레임) - 글씨 읽을 수 있는 속도
-      let isPaused = false
-      let userScrolling = false
-
-      handleMouseEnter = () => { 
-        isPaused = true 
-      }
-      
-      handleMouseLeave = () => { 
-        isPaused = false 
+      // 마우스 호버 시 일시정지
+      handleMouseEnter = () => {
+        isPaused = true
       }
 
+      handleMouseLeave = () => {
+        isPaused = false
+      }
+
+      // 사용자 스크롤 감지
       handleScroll = () => {
         if (scrollContainer) {
           scrollPosition = scrollContainer.scrollLeft
-          userScrolling = true
-          
+          isUserScrolling = true
+
           if (scrollTimeout) {
             clearTimeout(scrollTimeout)
           }
-          
+
           scrollTimeout = setTimeout(() => {
-            userScrolling = false
-          }, 2000)
+            isUserScrolling = false
+          }, 1500)
         }
       }
 
@@ -119,37 +115,46 @@ export default function Home() {
         scrollContainer.addEventListener('scroll', handleScroll)
       }
 
+      // 자동 스크롤 애니메이션
       const autoScroll = () => {
-        if (!isPaused && !userScrolling && scrollContainer) {
-          scrollPosition += scrollSpeed
-          const singleSetWidth = scrollContainer.scrollWidth / 2 // 원본 카드 세트의 너비
-          
-          // 첫 번째 세트의 끝에 도달하면 처음으로 부드럽게 이동
+        if (!scrollContainer) {
+          if (animationFrameId !== null) {
+            cancelAnimationFrame(animationFrameId)
+          }
+          return
+        }
+
+        if (!isPaused && !isUserScrolling) {
+          scrollPosition += SCROLL_SPEED
+          const singleSetWidth = scrollContainer.scrollWidth / 2
+
+          // 첫 번째 세트의 끝에 도달하면 처음으로 리셋
           if (scrollPosition >= singleSetWidth) {
             scrollPosition = scrollPosition - singleSetWidth
           }
-          
+
           scrollContainer.scrollLeft = scrollPosition
         }
+
         animationFrameId = requestAnimationFrame(autoScroll)
       }
 
-      // 초기화: 약간의 지연 후 시작
-      initTimeout = setTimeout(() => {
-        animationFrameId = requestAnimationFrame(autoScroll)
-      }, 500)
+      // 초기화 지연 (DOM이 완전히 렌더링될 때까지 대기)
+      setTimeout(() => {
+        if (scrollContainer && scrollContainer.scrollWidth > scrollContainer.clientWidth) {
+          animationFrameId = requestAnimationFrame(autoScroll)
+        }
+      }, 1000)
     }
 
     // 페이지 로드 완료 후 초기화
-    if (typeof window !== 'undefined') {
-      if (document.readyState === 'complete') {
-        initAutoScroll()
-      } else {
-        window.addEventListener('load', initAutoScroll)
-      }
+    if (document.readyState === 'complete') {
+      initAutoScroll()
+    } else {
+      window.addEventListener('load', initAutoScroll)
     }
 
-    // Cleanup 함수
+    // Cleanup
     return () => {
       if (animationFrameId !== null) {
         cancelAnimationFrame(animationFrameId)
@@ -160,17 +165,12 @@ export default function Home() {
       if (initTimeout) {
         clearTimeout(initTimeout)
       }
-      if (retryTimeout) {
-        clearTimeout(retryTimeout)
-      }
-      if (typeof window !== 'undefined') {
-        window.removeEventListener('load', initAutoScroll)
-      }
       if (scrollContainer && handleMouseEnter && handleMouseLeave && handleScroll) {
         scrollContainer.removeEventListener('mouseenter', handleMouseEnter)
         scrollContainer.removeEventListener('mouseleave', handleMouseLeave)
         scrollContainer.removeEventListener('scroll', handleScroll)
       }
+      window.removeEventListener('load', initAutoScroll)
     }
   }, [])
 
@@ -677,7 +677,7 @@ export default function Home() {
           <div 
             ref={processScrollRef}
             className="flex gap-6 overflow-x-auto scrollbar-hide pb-4 pt-8"
-            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}
           >
             {/* 원본 카드들 */}
             {processSteps.map((step, index) => (
@@ -687,7 +687,8 @@ export default function Home() {
                 whileInView={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.5, delay: index * 0.1 }}
                 viewport={{ once: true }}
-                className="flex-shrink-0 w-[320px] md:w-[380px] bg-zinc-900/50 border border-white/10 p-8 rounded-xl relative mt-8"
+                className="flex-shrink-0 w-[320px] md:w-[380px] bg-zinc-900/50 border border-white/10 p-8 rounded-xl relative"
+                style={{ marginTop: '2rem' }}
               >
                 <div className="absolute -top-4 -left-4 w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-cyan-500 flex items-center justify-center text-black font-bold">
                   {step.number}
@@ -704,7 +705,8 @@ export default function Home() {
                 whileInView={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.5, delay: index * 0.1 }}
                 viewport={{ once: true }}
-                className="flex-shrink-0 w-[320px] md:w-[380px] bg-zinc-900/50 border border-white/10 p-8 rounded-xl relative mt-8"
+                className="flex-shrink-0 w-[320px] md:w-[380px] bg-zinc-900/50 border border-white/10 p-8 rounded-xl relative"
+                style={{ marginTop: '2rem' }}
               >
                 <div className="absolute -top-4 -left-4 w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-cyan-500 flex items-center justify-center text-black font-bold">
                   {step.number}
