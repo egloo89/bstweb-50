@@ -239,7 +239,7 @@ export function ProcessAutoScroll({ steps, respectReducedMotion = false }: Proce
   return (
     <div
       ref={containerRef}
-      className="flex gap-6 overflow-x-auto scrollbar-hide pb-4 pt-8"
+      className="flex gap-6 overflow-x-auto scrollbar-hide pb-4 pt-8 whitespace-nowrap snap-x snap-mandatory"
       style={{
         scrollbarWidth: "none",
         msOverflowStyle: "none",
@@ -249,6 +249,7 @@ export function ProcessAutoScroll({ steps, respectReducedMotion = false }: Proce
         overflow: "auto",
         width: "100%",
         maxWidth: "100%",
+        whiteSpace: "nowrap",
       }}
     >
       {[0, 1].map((iteration) => (

@@ -207,7 +207,7 @@ export default function Home() {
   ]
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-[100svh] bg-black text-white">
       {/* Header */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-black/80 backdrop-blur-md border-b border-white/10">
         <div className="container mx-auto px-4 py-4">
@@ -296,7 +296,7 @@ export default function Home() {
       )}
 
       {/* Hero Section */}
-      <section ref={heroRef} className="relative min-h-screen flex items-center justify-center pt-20 overflow-hidden">
+      <section ref={heroRef} className="relative min-h-[100svh] flex items-center justify-center pt-20 overflow-hidden">
         {/* Shader Background */}
         <div className="absolute inset-0 z-0">
           <ShaderBackground position="absolute" />
