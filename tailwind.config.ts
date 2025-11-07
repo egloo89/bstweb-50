@@ -77,11 +77,30 @@ const config = {
   },
   plugins: [require("tailwindcss-animate")],
   safelist: [
+    // Overflow classes
     "overflow-x-auto",
     "overflow-y-auto",
+    "overflow-x-hidden",
+    "overflow-y-hidden",
+    // Scroll classes
     "scrollbar-hide",
+    "scroll-smooth",
+    // Snap classes
+    "snap-x",
+    "snap-mandatory",
+    "snap-start",
+    "snap-center",
+    "snap-end",
+    // Flex classes
+    "flex",
     "flex-shrink-0",
+    // Whitespace classes
     "whitespace-nowrap",
+    // Gap classes
+    "gap-6",
+    // Padding classes
+    "pb-4",
+    "pt-8",
   ],
 } satisfies Config
 
