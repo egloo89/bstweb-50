@@ -9,13 +9,6 @@ const config = {
     "./src/**/*.{ts,tsx}",
     "*.{js,ts,jsx,tsx,mdx}",
   ],
-  safelist: [
-    "overflow-x-auto",
-    "overflow-y-auto",
-    "scrollbar-hide",
-    "flex-shrink-0",
-    "whitespace-nowrap",
-  ],
   prefix: "",
   theme: {
     container: {
@@ -83,6 +76,13 @@ const config = {
     },
   },
   plugins: [require("tailwindcss-animate")],
+  safelist: [
+    "overflow-x-auto",
+    "overflow-y-auto",
+    "scrollbar-hide",
+    "flex-shrink-0",
+    "whitespace-nowrap",
+  ],
 } satisfies Config
 
 export default config

@@ -19,16 +19,21 @@ export function ProcessAutoScroll({ steps }: ProcessAutoScrollProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
-    const container = containerRef.current
-    if (!container) return
+    if (typeof window === 'undefined') return
 
     let animationFrameId: number | null = null
     let initTimeout: NodeJS.Timeout | null = null
     let retryTimeout: NodeJS.Timeout | null = null
     let retryCount = 0
-    const MAX_RETRIES = 30
+    const MAX_RETRIES = 50
 
-    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)")
+    const prefersReducedMotion = typeof window !== 'undefined' 
+      ? window.matchMedia("(prefers-reduced-motion: reduce)")
+      : null
+    
+    if (prefersReducedMotion?.matches) {
+      return
+    }
     
     let scrollPosition = 0
     let singleSetWidth = 0
@@ -40,6 +45,7 @@ export function ProcessAutoScroll({ steps }: ProcessAutoScrollProps) {
     let handleScroll: (() => void) | null = null
     let handleVisibilityChange: (() => void) | null = null
     let handleReducedMotionChange: ((event: MediaQueryListEvent) => void) | null = null
+    let observer: IntersectionObserver | null = null
 
     const cancelResumeTimeout = () => {
       if (resumeTimeout) {
@@ -58,7 +64,7 @@ export function ProcessAutoScroll({ steps }: ProcessAutoScrollProps) {
         return
       }
 
-      if (!isHovering && !isUserScrolling) {
+      if (!isHovering && !isUserScrolling && singleSetWidth > 0) {
         scrollPosition += SCROLL_SPEED
         if (scrollPosition >= singleSetWidth) {
           scrollPosition -= singleSetWidth
@@ -69,20 +75,40 @@ export function ProcessAutoScroll({ steps }: ProcessAutoScrollProps) {
       animationFrameId = requestAnimationFrame(autoScroll)
     }
 
-    const initAutoScroll = () => {
+    const startAutoScroll = () => {
       const currentContainer = containerRef.current
       if (!currentContainer) return
+
+      if (currentContainer.scrollWidth <= currentContainer.clientWidth || currentContainer.scrollWidth === 0) {
+        return
+      }
+
+      if (singleSetWidth === 0) {
+        scrollPosition = 0
+        singleSetWidth = currentContainer.scrollWidth / 2
+      }
+
+      if (animationFrameId === null) {
+        animationFrameId = requestAnimationFrame(autoScroll)
+      }
+    }
+
+    const initAutoScroll = () => {
+      const currentContainer = containerRef.current
+      if (!currentContainer) {
+        retryCount++
+        if (retryCount < MAX_RETRIES) {
+          retryTimeout = setTimeout(initAutoScroll, 200)
+        }
+        return
+      }
 
       // 스크롤 컨테이너의 크기가 제대로 계산될 때까지 대기
       if (currentContainer.scrollWidth <= currentContainer.clientWidth || currentContainer.scrollWidth === 0) {
         retryCount++
         if (retryCount < MAX_RETRIES) {
-          retryTimeout = setTimeout(initAutoScroll, 150)
+          retryTimeout = setTimeout(initAutoScroll, 200)
         }
-        return
-      }
-
-      if (prefersReducedMotion.matches) {
         return
       }
 
@@ -114,8 +140,8 @@ export function ProcessAutoScroll({ steps }: ProcessAutoScrollProps) {
             cancelAnimationFrame(animationFrameId)
             animationFrameId = null
           }
-        } else if (animationFrameId === null && currentContainer) {
-          animationFrameId = requestAnimationFrame(autoScroll)
+        } else {
+          startAutoScroll()
         }
       }
 
@@ -126,42 +152,58 @@ export function ProcessAutoScroll({ steps }: ProcessAutoScrollProps) {
         document.addEventListener("visibilitychange", handleVisibilityChange)
       }
 
+      // IntersectionObserver로 섹션이 보일 때 시작
+      observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              setTimeout(() => {
+                startAutoScroll()
+              }, 1000)
+            } else {
+              if (animationFrameId !== null) {
+                cancelAnimationFrame(animationFrameId)
+                animationFrameId = null
+              }
+            }
+          })
+        },
+        { threshold: 0.1 }
+      )
+
+      observer.observe(currentContainer)
+
       // 초기화 지연 (DOM이 완전히 렌더링될 때까지 대기)
-      const startAutoScroll = () => {
-        const currentContainer = containerRef.current
-        if (currentContainer && currentContainer.scrollWidth > currentContainer.clientWidth) {
-          if (animationFrameId === null) {
-            animationFrameId = requestAnimationFrame(autoScroll)
+      setTimeout(() => {
+        startAutoScroll()
+      }, 1200)
+
+      if (prefersReducedMotion) {
+        handleReducedMotionChange = (event: MediaQueryListEvent) => {
+          if (event.matches && animationFrameId !== null) {
+            cancelAnimationFrame(animationFrameId)
+            animationFrameId = null
+          } else if (!event.matches) {
+            startAutoScroll()
           }
-        } else {
-          // 재시도
-          setTimeout(startAutoScroll, 200)
         }
+        prefersReducedMotion.addEventListener("change", handleReducedMotionChange)
       }
-      
-      setTimeout(startAutoScroll, 1000)
-
-      handleReducedMotionChange = (event: MediaQueryListEvent) => {
-        const currentContainer = containerRef.current
-        if (event.matches && animationFrameId !== null) {
-          cancelAnimationFrame(animationFrameId)
-          animationFrameId = null
-        } else if (!event.matches && animationFrameId === null && currentContainer) {
-          animationFrameId = requestAnimationFrame(autoScroll)
-        }
-      }
-
-      prefersReducedMotion.addEventListener("change", handleReducedMotionChange)
     }
 
     // DOM이 준비될 때까지 대기
-    if (document.readyState === 'complete') {
-      initAutoScroll()
-    } else {
-      window.addEventListener('load', initAutoScroll)
-      // 폴백: load 이벤트가 이미 발생했을 수 있음
-      initTimeout = setTimeout(initAutoScroll, 1000)
+    const startInit = () => {
+      if (document.readyState === 'complete' || document.readyState === 'interactive') {
+        setTimeout(initAutoScroll, 500)
+      } else {
+        window.addEventListener('load', () => {
+          setTimeout(initAutoScroll, 500)
+        })
+        initTimeout = setTimeout(initAutoScroll, 2000)
+      }
     }
+
+    startInit()
 
     return () => {
       if (animationFrameId !== null) {
@@ -174,6 +216,9 @@ export function ProcessAutoScroll({ steps }: ProcessAutoScrollProps) {
         clearTimeout(retryTimeout)
       }
       cancelResumeTimeout()
+      if (observer) {
+        observer.disconnect()
+      }
       const currentContainer = containerRef.current
       if (currentContainer && handleMouseEnter && handleMouseLeave && handleScroll && handleVisibilityChange) {
         currentContainer.removeEventListener("mouseenter", handleMouseEnter)
@@ -181,27 +226,17 @@ export function ProcessAutoScroll({ steps }: ProcessAutoScrollProps) {
         currentContainer.removeEventListener("scroll", handleScroll)
         document.removeEventListener("visibilitychange", handleVisibilityChange)
       }
-      if (handleReducedMotionChange) {
+      if (handleReducedMotionChange && prefersReducedMotion) {
         prefersReducedMotion.removeEventListener("change", handleReducedMotionChange)
       }
-      window.removeEventListener('load', initAutoScroll)
     }
-  }, [steps.length])
+  }, [])
 
   return (
     <div
       ref={containerRef}
       className="flex gap-6 overflow-x-auto scrollbar-hide pb-4 pt-8"
-      style={{ 
-        scrollbarWidth: "none", 
-        msOverflowStyle: "none", 
-        WebkitOverflowScrolling: "touch",
-        overflowX: "auto",
-        overflowY: "hidden",
-        display: "flex",
-        flexDirection: "row",
-        flexWrap: "nowrap"
-      }}
+      style={{ scrollbarWidth: "none", msOverflowStyle: "none", WebkitOverflowScrolling: "touch" }}
     >
       {[0, 1].map((iteration) => (
         <div key={iteration} className="flex gap-6">
