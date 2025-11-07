@@ -36,7 +36,7 @@ import ShaderBackground from "@/components/ui/shader-background"
 import dynamic from "next/dynamic"
 
 const ProcessAutoScroll = dynamic(
-  () => import("@/components/process-auto-scroll").then((mod) => ({ default: mod.ProcessAutoScroll })),
+  () => import("@/components/process-auto-scroll").then((mod) => mod.ProcessAutoScroll),
   { ssr: false }
 )
 
