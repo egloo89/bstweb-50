@@ -26,6 +26,11 @@ export function ProcessAutoScroll({ steps, respectReducedMotion = false }: Proce
     const container = containerRef.current
     if (!container) return
 
+    // 환경 변수 체크: 프로덕션에서 자동 스크롤이 꺼지지 않도록 확인
+    // 주의: process.env는 클라이언트 사이드에서 접근 가능하지만, 
+    // Next.js에서는 빌드 타임에 인라인되므로 클라이언트 컴포넌트에서는 사용하지 않음
+    // 환경 변수로 인한 자동 스크롤 비활성화는 없음
+
     let animationFrameId: number | null = null
     let scrollPosition = 0
     let singleSetWidth = 0
@@ -38,6 +43,7 @@ export function ProcessAutoScroll({ steps, respectReducedMotion = false }: Proce
     const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)")
     
     // respectReducedMotion 옵션이 true일 때만 모션 줄이기 설정을 존중
+    // 기본값은 false이므로 프로덕션에서도 자동 스크롤이 작동함
     if (respectReducedMotion && prefersReducedMotion.matches) {
       return
     }
