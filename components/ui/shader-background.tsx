@@ -230,7 +230,9 @@ const ShaderBackground = ({ position = 'fixed' }: ShaderBackgroundProps) => {
 
     return () => {
       window.removeEventListener('resize', resizeCanvas);
-      cancelAnimationFrame(animationFrameId);
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+      }
     };
   }, []);
 
