@@ -118,7 +118,7 @@ export function ProcessAutoScroll({ steps }: ProcessAutoScrollProps) {
       }
     }
 
-    // 초기화 함수 - 여러 시점에서 시도
+    // 초기화 함수 - 레이아웃 확정 후 시작
     const initialize = () => {
       if (!container) return
 
@@ -135,15 +135,19 @@ export function ProcessAutoScroll({ steps }: ProcessAutoScrollProps) {
         }
       }
 
-      // 즉시 시도
-      tryStart()
+      // requestAnimationFrame으로 한 프레임 대기 (레이아웃 확정 후)
+      const rafId = requestAnimationFrame(() => {
+        // 추가로 약간의 지연을 두어 이미지/폰트 로딩 대기
+        setTimeout(() => {
+          tryStart()
+          // 여러 시점에서 재시도 (이미지/폰트 로딩 완료 대기)
+          setTimeout(tryStart, 200)
+          setTimeout(tryStart, 500)
+          setTimeout(tryStart, 1000)
+        }, 100)
+      })
 
-      // 짧은 지연 후 시도
-      setTimeout(tryStart, 100)
-      setTimeout(tryStart, 300)
-      setTimeout(tryStart, 500)
-      setTimeout(tryStart, 1000)
-      setTimeout(tryStart, 2000)
+      return rafId
     }
 
     // 이벤트 리스너 등록
@@ -157,9 +161,13 @@ export function ProcessAutoScroll({ steps }: ProcessAutoScrollProps) {
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
-            setTimeout(() => {
-              initialize()
-            }, 300)
+            // 레이아웃 확정 후 시작
+            const rafId = requestAnimationFrame(() => {
+              setTimeout(() => {
+                initialize()
+              }, 100)
+            })
+            return () => cancelAnimationFrame(rafId)
           } else {
             isActive = false
             if (animationFrameId !== null) {
@@ -174,20 +182,28 @@ export function ProcessAutoScroll({ steps }: ProcessAutoScrollProps) {
 
     observer.observe(container)
 
-    // DOM이 준비된 후 초기화 - document 접근을 useEffect 안에서만
+    // DOM이 준비된 후 초기화 - 레이아웃 확정 후 시작
+    let initRafId: number | null = null
+    
     if (document.readyState === 'complete' || document.readyState === 'interactive') {
-      setTimeout(initialize, 500)
+      initRafId = initialize()
     } else {
       window.addEventListener('load', () => {
-        setTimeout(initialize, 500)
+        initRafId = initialize()
       })
-      setTimeout(initialize, 2000)
+      // 폴백: load 이벤트가 이미 발생했을 수 있음
+      setTimeout(() => {
+        initRafId = initialize()
+      }, 2000)
     }
 
     return () => {
       isActive = false
       if (animationFrameId !== null) {
         cancelAnimationFrame(animationFrameId)
+      }
+      if (initRafId !== null) {
+        cancelAnimationFrame(initRafId)
       }
       cancelResumeTimeout()
       if (container) {
