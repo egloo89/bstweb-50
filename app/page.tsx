@@ -10,11 +10,16 @@ import {
   ChevronRight,
   Code,
   Database,
+  Eye,
   Github,
+  Link2,
   Linkedin,
   Mail,
   Menu,
   MessageSquare,
+  Palette,
+  Rocket,
+  Smartphone,
   Sparkles,
   Twitter,
   X,
@@ -38,6 +43,7 @@ export default function Home() {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const heroRef = useRef(null)
+  const processScrollRef = useRef<HTMLDivElement>(null)
   const { scrollYProgress } = useScroll({
     target: heroRef,
     offset: ["start start", "end start"],
@@ -45,6 +51,78 @@ export default function Home() {
 
   const opacity = useTransform(scrollYProgress, [0, 1], [1, 0])
   const scale = useTransform(scrollYProgress, [0, 1], [1, 0.8])
+
+  // Auto scroll for process section
+  useEffect(() => {
+    const scrollContainer = processScrollRef.current
+    if (!scrollContainer) return
+
+    let scrollPosition = 0
+    const scrollSpeed = 0.24 // 스크롤 속도 (픽셀/프레임) - 글씨 읽을 수 있는 속도
+    let animationFrameId: number | null = null
+    let isPaused = false
+    let userScrolling = false
+    let scrollTimeout: NodeJS.Timeout | null = null
+
+    const handleMouseEnter = () => { 
+      isPaused = true 
+    }
+    
+    const handleMouseLeave = () => { 
+      isPaused = false 
+    }
+
+    const handleScroll = () => {
+      if (scrollContainer) {
+        scrollPosition = scrollContainer.scrollLeft
+        userScrolling = true
+        
+        if (scrollTimeout) {
+          clearTimeout(scrollTimeout)
+        }
+        
+        scrollTimeout = setTimeout(() => {
+          userScrolling = false
+        }, 2000)
+      }
+    }
+
+    scrollContainer.addEventListener('mouseenter', handleMouseEnter)
+    scrollContainer.addEventListener('mouseleave', handleMouseLeave)
+    scrollContainer.addEventListener('scroll', handleScroll)
+
+    const autoScroll = () => {
+      if (!isPaused && !userScrolling && scrollContainer) {
+        scrollPosition += scrollSpeed
+        const singleSetWidth = scrollContainer.scrollWidth / 2 // 원본 카드 세트의 너비
+        
+        // 첫 번째 세트의 끝에 도달하면 처음으로 부드럽게 이동
+        if (scrollPosition >= singleSetWidth) {
+          scrollPosition = scrollPosition - singleSetWidth
+        }
+        
+        scrollContainer.scrollLeft = scrollPosition
+      }
+      animationFrameId = requestAnimationFrame(autoScroll)
+    }
+
+    // 초기화: 약간의 지연 후 시작
+    setTimeout(() => {
+      animationFrameId = requestAnimationFrame(autoScroll)
+    }, 500)
+
+    return () => {
+      if (animationFrameId !== null) {
+        cancelAnimationFrame(animationFrameId)
+      }
+      if (scrollTimeout) {
+        clearTimeout(scrollTimeout)
+      }
+      scrollContainer.removeEventListener('mouseenter', handleMouseEnter)
+      scrollContainer.removeEventListener('mouseleave', handleMouseLeave)
+      scrollContainer.removeEventListener('scroll', handleScroll)
+    }
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -110,12 +188,12 @@ export default function Home() {
       description: "데이터 시각화와 사용자 경험을 중점적으로 관리하는 플랫폼",
     },
     {
-      icon: <Brain className="h-10 w-10" />,
+      icon: <Palette className="h-10 w-10" />,
       title: "브랜딩",
       description: "기업의 새로운 정체성을 담은 브랜드 시스템",
     },
     {
-      icon: <MessageSquare className="h-10 w-10" />,
+      icon: <Smartphone className="h-10 w-10" />,
       title: "앱 개발",
       description: "사용자 중심의 직관적인 모바일 앱",
     },
@@ -125,7 +203,7 @@ export default function Home() {
       description: "창의적이고 인터랙티브한 게인 포트폴리오",
     },
     {
-      icon: <Twitter className="h-10 w-10" />,
+      icon: <Eye className="h-10 w-10" />,
       title: "컴퓨터 비전",
       description: "이미지와 비디오 데이터를 분석하여 가치 있는 정보를 제공합니다.",
     },
@@ -450,10 +528,11 @@ export default function Home() {
               <div className="aspect-square rounded-2xl bg-gradient-to-br from-purple-500/20 to-cyan-500/20 p-1">
                 <div className="w-full h-full rounded-xl bg-zinc-900 p-8 flex items-center justify-center">
                   <div className="text-center">
-                    <Brain className="h-24 w-24 mx-auto mb-6 text-purple-500" />
+                    <Rocket className="h-24 w-24 mx-auto mb-6 text-purple-500" />
                     <h3 className="text-2xl font-bold mb-4">우리의 미션</h3>
                     <p className="text-gray-400">
-                      모든 규모의 기업이 접근 가능하고 실행 가능한 고급 AI 기능을 제공함으로써 인공지능을 민주화합니다.
+                      브랜드 전략, 디자인, 기술을 하나로 연결하여<br />
+                      비즈니스를 성장시키는 웹 경험을 제공합니다.
                     </p>
                   </div>
                 </div>
@@ -477,31 +556,56 @@ export default function Home() {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {teamMembers.map((member, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: index * 0.1 }}
-                viewport={{ once: true }}
-                className="bg-zinc-800/50 border border-white/10 p-8 rounded-xl hover:bg-zinc-800/80 transition-colors"
-              >
-                <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-gradient-to-br from-purple-500/20 to-cyan-500/20 flex items-center justify-center">
-                  <div className="w-[90px] h-[90px] rounded-full bg-zinc-800 flex items-center justify-center">
-                    <span className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-500 to-cyan-400">
-                      {member.name
-                        .split(" ")
-                        .map((n) => n[0])
-                        .join("")}
-                    </span>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
+            {teamMembers.map((member, index) => {
+              const roleMatch = member.role.match(/^(.+?)\s*\((.+?)\)$/);
+              const roleEnglish = roleMatch ? roleMatch[1] : member.role;
+              const roleKorean = roleMatch ? roleMatch[2] : '';
+              
+              return (
+                <motion.div
+                  key={index}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: index * 0.1 }}
+                  viewport={{ once: true }}
+                  whileHover={{ 
+                    scale: 1.05, 
+                    y: -5,
+                    transition: { duration: 0.15, ease: "easeOut" }
+                  }}
+                  className="group relative bg-gradient-to-br from-zinc-800/50 to-zinc-900/50 border border-white/10 p-8 rounded-2xl hover:border-purple-500/30 hover:shadow-lg hover:shadow-purple-500/10 transition-all duration-200 cursor-pointer"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-cyan-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                  
+                  <div className="relative z-10">
+                    <div className="w-28 h-28 mx-auto mb-6 rounded-full bg-gradient-to-br from-purple-500/30 to-cyan-500/30 p-[2px] group-hover:from-purple-500/50 group-hover:to-cyan-500/50 transition-all duration-300">
+                      <div className="w-full h-full rounded-full bg-zinc-900 flex items-center justify-center">
+                        <span className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-cyan-400">
+                          {member.name
+                            .split(" ")
+                            .map((n) => n[0])
+                            .join("")}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <h3 className="text-xl font-bold mb-3 text-center text-white group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-purple-400 group-hover:to-cyan-400 transition-all duration-300">
+                      {member.name}
+                    </h3>
+                    
+                    <div className="mb-4 text-center">
+                      <p className="text-purple-400 font-semibold text-base mb-1">{roleEnglish}</p>
+                      {roleKorean && (
+                        <p className="text-white text-sm font-medium">({roleKorean})</p>
+                      )}
+                    </div>
+                    
+                    <p className="text-gray-400 text-center text-sm leading-relaxed">{member.bio}</p>
                   </div>
-                </div>
-                <h3 className="text-xl font-bold mb-2 text-center">{member.name}</h3>
-                <p className="text-purple-400 mb-4 font-bold text-sm tracking-normal text-center">{member.role}</p>
-                <p className="text-gray-400 text-center">{member.bio}</p>
-              </motion.div>
-            ))}
+                </motion.div>
+              );
+            })}
           </div>
         </div>
       </section>
@@ -520,15 +624,37 @@ export default function Home() {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div 
+            ref={processScrollRef}
+            className="flex gap-6 overflow-x-auto scrollbar-hide pb-4 pt-8"
+            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+          >
+            {/* 원본 카드들 */}
             {processSteps.map((step, index) => (
               <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
+                key={`original-${index}`}
+                initial={{ opacity: 0, x: 20 }}
+                whileInView={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.5, delay: index * 0.1 }}
                 viewport={{ once: true }}
-                className="bg-zinc-900/50 border border-white/10 p-8 rounded-xl relative"
+                className="flex-shrink-0 w-[320px] md:w-[380px] bg-zinc-900/50 border border-white/10 p-8 rounded-xl relative mt-8"
+              >
+                <div className="absolute -top-4 -left-4 w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-cyan-500 flex items-center justify-center text-black font-bold">
+                  {step.number}
+                </div>
+                <h3 className="text-xl font-bold mb-4 mt-2">{step.title}</h3>
+                <p className="text-gray-400">{step.description}</p>
+              </motion.div>
+            ))}
+            {/* 복제된 카드들 (무한 루프용) */}
+            {processSteps.map((step, index) => (
+              <motion.div
+                key={`duplicate-${index}`}
+                initial={{ opacity: 0, x: 20 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.5, delay: index * 0.1 }}
+                viewport={{ once: true }}
+                className="flex-shrink-0 w-[320px] md:w-[380px] bg-zinc-900/50 border border-white/10 p-8 rounded-xl relative mt-8"
               >
                 <div className="absolute -top-4 -left-4 w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-cyan-500 flex items-center justify-center text-black font-bold">
                   {step.number}
@@ -566,12 +692,6 @@ export default function Home() {
                   </a>
                 </div>
 
-                <div className="flex items-center gap-4">
-                  <div className="bg-purple-500/20 p-3 rounded-full">
-                    <Sparkles className="h-5 w-5 text-purple-400" />
-                  </div>
-                  <span className="text-gray-300">서울 • 부산 • 대구</span>
-                </div>
 
                 <div className="flex gap-4 mt-8">
                   <TooltipProvider>
