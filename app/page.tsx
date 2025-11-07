@@ -544,8 +544,8 @@ export default function Home() {
       </section>
 
       {/* Process Section */}
-      <section id="process" className="py-24 relative overflow-hidden">
-        <div className="absolute inset-0 z-0">
+      <section id="process" className="py-24 relative">
+        <div className="absolute inset-0 z-0 overflow-hidden">
           <div className="absolute top-1/2 right-1/4 w-96 h-96 bg-cyan-600/10 rounded-full filter blur-3xl"></div>
         </div>
 
@@ -557,7 +557,9 @@ export default function Home() {
             </p>
           </div>
 
-          <ProcessAutoScroll steps={processSteps} />
+          <div className="overflow-visible">
+            <ProcessAutoScroll steps={processSteps} />
+          </div>
         </div>
       </section>
 

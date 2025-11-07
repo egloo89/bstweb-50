@@ -69,9 +69,20 @@ export function ProcessAutoScroll({ steps }: ProcessAutoScrollProps) {
     const startScrolling = () => {
       if (!container || isActive) return
       
+      // 스타일 확인: overflow-x-auto가 실제로 적용되어 있는지
+      const computedStyle = window.getComputedStyle(container)
+      const overflowX = computedStyle.overflowX
+      
+      if (overflowX !== 'auto' && overflowX !== 'scroll') {
+        // 강제로 overflow-x: auto 적용
+        container.style.overflowX = 'auto'
+        container.style.overflowY = 'hidden'
+      }
+      
       const scrollWidth = container.scrollWidth
       const clientWidth = container.clientWidth
       
+      // 요소 총 너비 > 컨테이너 너비인지 확인
       if (scrollWidth <= clientWidth || scrollWidth === 0) {
         return
       }
@@ -226,6 +237,9 @@ export function ProcessAutoScroll({ steps }: ProcessAutoScrollProps) {
         WebkitOverflowScrolling: "touch",
         overflowX: "auto",
         overflowY: "hidden",
+        overflow: "auto",
+        width: "100%",
+        maxWidth: "100%",
       }}
     >
       {[0, 1].map((iteration) => (
