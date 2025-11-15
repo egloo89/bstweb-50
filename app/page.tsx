@@ -439,7 +439,7 @@ export default function Home() {
                 className="max-w-md mx-auto"
               >
                 <form onSubmit={handleSubmit} className="bg-zinc-800/50 border border-white/10 p-6 md:p-8 rounded-xl">
-                  <h3 className="text-xl md:text-2xl font-bold mb-6 md:mb-8 text-center">고퀄리티 홈페이지 제작 및 마케팅 문의</h3>
+                  <h3 className="text-xl md:text-2xl font-bold mb-6 md:mb-8 text-center">고퀄리티 홈페이지 제작 문의하기</h3>
 
                   <div className="space-y-4 md:space-y-5">
                     <div>
@@ -753,7 +753,7 @@ export default function Home() {
                 className="max-w-md mx-auto"
               >
                 <form onSubmit={handleSubmit} className="bg-zinc-800/50 border border-white/10 p-6 md:p-8 rounded-xl">
-                  <h3 className="text-xl md:text-2xl font-bold mb-6 md:mb-8 text-center">고퀄리티 홈페이지 제작 및 마케팅 문의</h3>
+                  <h3 className="text-xl md:text-2xl font-bold mb-6 md:mb-8 text-center">고퀄리티 홈페이지 제작 문의하기</h3>
 
                   <div className="space-y-4 md:space-y-5">
                     <div>
