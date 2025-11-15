@@ -126,25 +126,33 @@ export default function Home() {
       console.error("❌ Error saving contact:", error)
       console.error("Error code:", error?.code)
       console.error("Error message:", error?.message)
+      console.error("Error name:", error?.name)
       console.error("Full error:", error)
+      
+      // Check if Firebase is properly initialized
+      console.log("Firebase db check:", db ? "✅ Initialized" : "❌ Not initialized")
+      console.log("Environment:", process.env.NODE_ENV)
+      console.log("API Key exists:", !!process.env.NEXT_PUBLIC_FIREBASE_API_KEY)
       
       let errorMessage = "오류가 발생했습니다. 다시 시도해주세요."
       
       if (error?.code === "permission-denied") {
-        errorMessage = "Firestore 보안 규칙 오류입니다. 규칙 탭에서 'allow create: if true'를 확인해주세요."
+        errorMessage = "Firestore 보안 규칙 오류입니다. Firebase 콘솔에서 보안 규칙을 확인해주세요."
       } else if (error?.code === "unavailable" || error?.code === "deadline-exceeded") {
-        errorMessage = "Firestore 연결 실패. 데이터베이스가 생성되었는지 확인해주세요."
+        errorMessage = "Firestore 연결 실패. 네트워크 연결과 데이터베이스 상태를 확인해주세요."
       } else if (error?.code === "failed-precondition") {
-        errorMessage = "Firestore 데이터베이스가 생성되지 않았습니다."
+        errorMessage = "Firestore 데이터베이스가 생성되지 않았습니다. Firebase 콘솔에서 데이터베이스를 생성해주세요."
       } else if (error?.code === "invalid-argument") {
         errorMessage = "잘못된 데이터 형식입니다."
+      } else if (error?.message?.includes("환경 변수") || error?.message?.includes("초기화")) {
+        errorMessage = "Firebase 설정 오류입니다. 배포 환경 변수를 확인해주세요."
       } else if (error?.message) {
         errorMessage = error.message
       }
       
       toast({
         title: "전송 실패",
-        description: errorMessage + " (콘솔에서 자세한 오류 확인 가능)",
+        description: errorMessage + (process.env.NODE_ENV === 'production' ? " (배포 환경 변수 확인 필요)" : ""),
         variant: "destructive",
       })
     } finally {
