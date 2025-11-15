@@ -34,6 +34,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { cn } from "@/lib/utils"
 import ShaderBackground from "@/components/ui/shader-background"
 import dynamic from "next/dynamic"
+import { db } from "@/lib/firebase"
+import { collection, addDoc, serverTimestamp } from "firebase/firestore"
 
 const ProcessAutoScroll = dynamic(
   () => import("@/components/process-auto-scroll").then((mod) => mod.ProcessAutoScroll),
@@ -89,18 +91,65 @@ export default function Home() {
 
     setIsSubmitting(true)
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500))
+    try {
+      // Check if db is initialized
+      if (!db) {
+        throw new Error("Firebase가 초기화되지 않았습니다. 환경 변수를 확인해주세요.")
+      }
 
-    toast({
-      title: "메시지 전송 완료!",
-      description: "곧 연락드리겠습니다.",
-    })
+      console.log("=== Firestore Save Attempt ===")
+      console.log("Database:", db)
+      console.log("Collection: contacts")
+      console.log("Data:", { name, email, phone })
 
-    setEmail("")
-    setPhone("")
-    setName("")
-    setIsSubmitting(false)
+      // Save to Firebase Firestore
+      const docRef = await addDoc(collection(db, "contacts"), {
+        name: name,
+        email: email,
+        phone: phone,
+        timestamp: serverTimestamp(),
+        createdAt: new Date().toISOString(),
+      })
+      
+      console.log("✅ Successfully saved to Firestore!")
+      console.log("Document ID:", docRef.id)
+
+      toast({
+        title: "메시지 전송 완료!",
+        description: "곧 연락드리겠습니다.",
+      })
+
+      setEmail("")
+      setPhone("")
+      setName("")
+    } catch (error: any) {
+      console.error("❌ Error saving contact:", error)
+      console.error("Error code:", error?.code)
+      console.error("Error message:", error?.message)
+      console.error("Full error:", error)
+      
+      let errorMessage = "오류가 발생했습니다. 다시 시도해주세요."
+      
+      if (error?.code === "permission-denied") {
+        errorMessage = "Firestore 보안 규칙 오류입니다. 규칙 탭에서 'allow create: if true'를 확인해주세요."
+      } else if (error?.code === "unavailable" || error?.code === "deadline-exceeded") {
+        errorMessage = "Firestore 연결 실패. 데이터베이스가 생성되었는지 확인해주세요."
+      } else if (error?.code === "failed-precondition") {
+        errorMessage = "Firestore 데이터베이스가 생성되지 않았습니다."
+      } else if (error?.code === "invalid-argument") {
+        errorMessage = "잘못된 데이터 형식입니다."
+      } else if (error?.message) {
+        errorMessage = error.message
+      }
+      
+      toast({
+        title: "전송 실패",
+        description: errorMessage + " (콘솔에서 자세한 오류 확인 가능)",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   // Close mobile menu when clicking outside
@@ -362,6 +411,98 @@ export default function Home() {
         </motion.div>
       </section>
 
+      {/* Inquiry Form Section */}
+      <section id="inquiry" className="py-12 md:py-24 bg-black overflow-x-hidden">
+        <div className="container mx-auto px-4 max-w-full">
+          <div className="max-w-4xl mx-auto">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8 }}
+              viewport={{ once: true }}
+              className="text-center"
+            >
+              {/* 고퀄리티 홈페이지 제작 문의 폼 */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8, delay: 0.2 }}
+                viewport={{ once: true }}
+                className="max-w-md mx-auto"
+              >
+                <form onSubmit={handleSubmit} className="bg-zinc-800/50 border border-white/10 p-6 md:p-8 rounded-xl">
+                  <h3 className="text-xl md:text-2xl font-bold mb-6 md:mb-8 text-center">고퀄리티 홈페이지 제작 및 마케팅 문의</h3>
+
+                  <div className="space-y-4 md:space-y-5">
+                    <div>
+                      <label htmlFor="name2" className="block text-base md:text-lg font-bold mb-2">
+                        이름
+                      </label>
+                      <Input
+                        id="name2"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        className="bg-zinc-900/50 border-white/10 focus:border-purple-500 focus:ring-purple-500 text-base md:text-lg w-full"
+                        placeholder="이름을 입력해주세요"
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="email2" className="block text-base md:text-lg font-bold mb-2">
+                        이메일
+                      </label>
+                      <Input
+                        id="email2"
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="bg-zinc-900/50 border-white/10 focus:border-purple-500 focus:ring-purple-500 text-base md:text-lg w-full"
+                        placeholder="메일주소@naver.com"
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="phone2" className="block text-base md:text-lg font-bold mb-2">
+                        전화번호
+                      </label>
+                      <Input
+                        id="phone2"
+                        type="tel"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        className="bg-zinc-900/50 border-white/10 focus:border-purple-500 focus:ring-purple-500 text-base md:text-lg w-full"
+                        placeholder="010-1234-5678"
+                      />
+                    </div>
+
+                    <Button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className={cn(
+                        "w-full bg-gradient-to-r from-purple-600 to-cyan-500 hover:from-purple-700 hover:to-cyan-600 text-white text-base md:text-lg font-bold py-3 md:py-4",
+                        isSubmitting && "opacity-70 cursor-not-allowed",
+                      )}
+                    >
+                      {isSubmitting ? "전송 중..." : "견적 문의"}
+                    </Button>
+
+                    {/* 카카오 채널 버튼 */}
+                    <div className="pt-2 flex items-center justify-center gap-3 md:gap-4">
+                      <span className="text-white font-semibold text-base md:text-lg whitespace-nowrap">OR</span>
+                      <a href="http://pf.kakao.com/_BjtHn" target="_blank" rel="noopener noreferrer" className="flex-shrink-0">
+                        <Button className="bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-500 hover:to-yellow-600 text-black font-bold text-sm md:text-base px-4 md:px-6 py-2 md:py-3 whitespace-nowrap">
+                          카카오 채널로 문의하기
+                        </Button>
+                      </a>
+                    </div>
+                  </div>
+                </form>
+              </motion.div>
+            </motion.div>
+          </div>
+        </div>
+      </section>
+
       {/* Services Section */}
       <section id="services" className="py-12 md:py-24 bg-zinc-900 overflow-x-hidden">
         <div className="container mx-auto px-4 max-w-full">
@@ -604,7 +745,7 @@ export default function Home() {
                 className="max-w-md mx-auto"
               >
                 <form onSubmit={handleSubmit} className="bg-zinc-800/50 border border-white/10 p-6 md:p-8 rounded-xl">
-                  <h3 className="text-xl md:text-2xl font-bold mb-6 md:mb-8 text-center">고퀄리티 홈페이지 제작 문의</h3>
+                  <h3 className="text-xl md:text-2xl font-bold mb-6 md:mb-8 text-center">고퀄리티 홈페이지 제작 및 마케팅 문의</h3>
 
                   <div className="space-y-4 md:space-y-5">
                     <div>
