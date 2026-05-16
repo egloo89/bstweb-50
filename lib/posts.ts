@@ -10,6 +10,7 @@ export interface PostFrontmatter {
   excerpt: string
   thumbnail?: string
   published: boolean
+  views?: number
 }
 
 export interface Post extends PostFrontmatter {
@@ -43,6 +44,7 @@ export function getAllPosts(includeUnpublished = false): Post[] {
       excerpt: data.excerpt || "",
       thumbnail: data.thumbnail || "",
       published: data.published !== false,
+      views: typeof data.views === "number" ? data.views : 0,
     }
   })
   const filtered = includeUnpublished ? posts : posts.filter((p) => p.published)
@@ -65,6 +67,7 @@ export function getPostBySlug(slug: string): Post | null {
     excerpt: data.excerpt || "",
     thumbnail: data.thumbnail || "",
     published: data.published !== false,
+    views: typeof data.views === "number" ? data.views : 0,
   }
 }
 
@@ -78,6 +81,7 @@ export interface CreatePostInput {
   thumbnail?: string
   published?: boolean
   content: string
+  views?: number
 }
 
 function serializePost(input: CreatePostInput): string {
@@ -89,6 +93,7 @@ function serializePost(input: CreatePostInput): string {
     excerpt: input.excerpt || "",
     thumbnail: input.thumbnail || "",
     published: input.published !== false,
+    views: input.views ?? 0,
   }
   return matter.stringify(input.content || "", fm)
 }

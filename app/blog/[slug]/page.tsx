@@ -1,13 +1,12 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ArrowLeft, Calendar, Tag } from "lucide-react"
-import { getAllPosts, getPostBySlug, getRelatedPosts } from "@/lib/posts"
-import { CategoryBadge } from "@/components/CategoryBadge"
+import { Calendar, Tag, ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react"
+import { getAllPosts, getPostBySlug } from "@/lib/posts"
+import { getCategories } from "@/lib/categories"
+import { CategorySidebar } from "@/components/CategorySidebar"
+import { BlogHeader } from "@/components/BlogHeader"
 import { MDXContent } from "@/components/MDXContent"
-import { PostCard } from "@/components/PostCard"
-import { Sidebar } from "@/components/Sidebar"
-import { AdInArticle, AdFooter } from "@/components/AdSense"
-import { formatDate } from "@/lib/utils"
+import { AdInArticle } from "@/components/AdSense"
 
 export async function generateStaticParams() {
   return getAllPosts(true).map((p) => ({ slug: p.slug }))
@@ -28,78 +27,102 @@ export function generateMetadata({ params }: { params: { slug: string } }) {
   }
 }
 
+function formatDate(dateStr: string) {
+  const d = new Date(dateStr)
+  if (isNaN(d.getTime())) return dateStr
+  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}.`
+}
+
+const CATEGORY_COLORS: Record<string, string> = {
+  AI: "bg-violet-100 text-violet-700",
+  웹개발: "bg-blue-100 text-blue-700",
+  프로그래밍: "bg-green-100 text-green-700",
+  디자인: "bg-pink-100 text-pink-700",
+  생산성: "bg-orange-100 text-orange-700",
+  튜토리얼: "bg-teal-100 text-teal-700",
+  공지사항: "bg-red-100 text-red-700",
+  기타: "bg-gray-100 text-gray-600",
+}
+
 export default function PostPage({ params }: { params: { slug: string } }) {
   const post = getPostBySlug(params.slug)
   if (!post || !post.published) notFound()
-  const related = getRelatedPosts(post.slug, post.category, 3)
 
-  // Split content roughly in half for in-article ad
+  const allPosts = getAllPosts()
+  const categories = getCategories()
+  const idx = allPosts.findIndex((p) => p.slug === post.slug)
+  const prevPost = idx < allPosts.length - 1 ? allPosts[idx + 1] : null
+  const nextPost = idx > 0 ? allPosts[idx - 1] : null
+
   const paragraphs = post.content.split(/\n\n+/)
   const half = Math.floor(paragraphs.length / 2)
   const firstHalf = paragraphs.slice(0, half).join("\n\n")
   const secondHalf = paragraphs.slice(half).join("\n\n")
 
-  return (
-    <div className="container-blog py-10">
-      <Link
-        href="/blog"
-        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary mb-6"
-      >
-        <ArrowLeft className="h-4 w-4" /> 블로그로 돌아가기
-      </Link>
+  const colorClass = CATEGORY_COLORS[post.category] || CATEGORY_COLORS["기타"]
 
-      <div className="grid gap-10 lg:grid-cols-[1fr_300px]">
-        <article>
-          <header className="mb-8 pb-6 border-b">
-            <CategoryBadge category={post.category} />
-            <h1 className="mt-4 text-3xl sm:text-4xl font-bold tracking-tight leading-tight">
-              {post.title}
-            </h1>
-            <p className="mt-3 text-lg text-muted-foreground">{post.excerpt}</p>
-            <div className="mt-5 flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-              <span className="inline-flex items-center gap-1">
-                <Calendar className="h-4 w-4" /> {formatDate(post.date)}
-              </span>
+  return (
+    <div className="blog-container">
+      <BlogHeader />
+      <div className="flex" style={{ minHeight: 600 }}>
+        <CategorySidebar
+          categories={categories}
+          totalCount={allPosts.length}
+          selectedCategory={post.category}
+        />
+        <main className="flex-1 min-w-0 px-8 py-7">
+          <Link href="/blog" className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-[#4361ee] mb-5 transition-colors">
+            <ArrowLeft className="h-3.5 w-3.5" /> 목록으로
+          </Link>
+          <header className="pb-5 border-b border-gray-100 mb-6">
+            <span className={`inline-block text-[11px] px-2 py-0.5 rounded font-medium mb-3 ${colorClass}`}>
+              {post.category}
+            </span>
+            <h1 className="text-2xl font-bold text-gray-900 leading-tight mb-3">{post.title}</h1>
+            {post.excerpt && <p className="text-sm text-gray-500 mb-3">{post.excerpt}</p>}
+            <div className="flex flex-wrap items-center gap-3 text-xs text-gray-400">
+              <span className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5" />{formatDate(post.date)}</span>
+              <span>조회 {post.views ?? 0}</span>
               {post.tags.length > 0 && (
-                <span className="inline-flex items-center gap-1.5 flex-wrap">
-                  <Tag className="h-4 w-4" />
+                <span className="flex items-center gap-1.5 flex-wrap">
+                  <Tag className="h-3.5 w-3.5" />
                   {post.tags.map((t) => (
-                    <span key={t} className="bg-muted px-2 py-0.5 rounded text-xs">
-                      #{t}
-                    </span>
+                    <span key={t} className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-500">#{t}</span>
                   ))}
                 </span>
               )}
             </div>
           </header>
-
           {post.thumbnail && (
-            <img src={post.thumbnail} alt={post.title} className="w-full rounded-xl mb-8" />
+            <img src={post.thumbnail} alt={post.title} className="w-full rounded-lg mb-6 max-h-80 object-cover" />
           )}
-
-          <MDXContent source={firstHalf} />
-
-          <AdInArticle />
-
-          {secondHalf && <MDXContent source={secondHalf} />}
-
-          <div className="mt-12 pt-8 border-t">
-            <AdFooter />
+          <article>
+            <MDXContent source={firstHalf} />
+            <AdInArticle />
+            {secondHalf && <MDXContent source={secondHalf} />}
+          </article>
+          {post.tags.length > 0 && (
+            <div className="mt-8 pt-5 border-t border-gray-100 flex flex-wrap gap-2">
+              {post.tags.map((t) => (
+                <span key={t} className="text-xs bg-gray-100 text-gray-600 px-2.5 py-1 rounded-full">#{t}</span>
+              ))}
+            </div>
+          )}
+          <div className="mt-8 border-t border-gray-100 pt-5 grid grid-cols-2 gap-3 text-sm">
+            {prevPost ? (
+              <Link href={`/blog/${prevPost.slug}`} className="flex items-center gap-2 text-gray-500 hover:text-[#4361ee] transition-colors">
+                <ChevronLeft className="h-4 w-4 shrink-0" />
+                <span className="truncate">{prevPost.title}</span>
+              </Link>
+            ) : <div />}
+            {nextPost ? (
+              <Link href={`/blog/${nextPost.slug}`} className="flex items-center gap-2 text-gray-500 hover:text-[#4361ee] transition-colors justify-end text-right">
+                <span className="truncate">{nextPost.title}</span>
+                <ChevronRight className="h-4 w-4 shrink-0" />
+              </Link>
+            ) : <div />}
           </div>
-
-          {related.length > 0 && (
-            <section className="mt-12">
-              <h2 className="text-2xl font-bold mb-6">관련 글</h2>
-              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                {related.map((p) => (
-                  <PostCard key={p.slug} post={p} />
-                ))}
-              </div>
-            </section>
-          )}
-        </article>
-
-        <Sidebar />
+        </main>
       </div>
     </div>
   )

@@ -1,59 +1,62 @@
 import { notFound } from "next/navigation"
-import Link from "next/link"
-import { ArrowLeft } from "lucide-react"
-import { getPostsByCategory, getCategories } from "@/lib/categories"
-import { PostCard } from "@/components/PostCard"
-import { Sidebar } from "@/components/Sidebar"
-import { AdBanner } from "@/components/AdSense"
+import { getAllPosts } from "@/lib/posts"
+import { getCategories, getPostsByCategory } from "@/lib/categories"
+import { BlogHeader } from "@/components/BlogHeader"
+import { CategorySidebar } from "@/components/CategorySidebar"
+import { FeaturedPosts } from "@/components/FeaturedPosts"
+import { PostTable } from "@/components/PostTable"
 
-export function generateStaticParams() {
-  return getCategories().map((c) => ({ category: encodeURIComponent(c.name) }))
+const PAGE_SIZE = 15
+
+export async function generateStaticParams() {
+  return getCategories().map((c) => ({ category: c.slug }))
 }
 
 export function generateMetadata({ params }: { params: { category: string } }) {
-  const category = decodeURIComponent(params.category)
-  return { title: `${category} - 카테고리`, description: `${category} 카테고리의 모든 글` }
+  const name = decodeURIComponent(params.category)
+  return { title: `${name} - 카테고리` }
 }
 
-export default function CategoryPage({ params }: { params: { category: string } }) {
-  const category = decodeURIComponent(params.category)
-  const posts = getPostsByCategory(category)
+export default function CategoryPage({
+  params,
+  searchParams,
+}: {
+  params: { category: string }
+  searchParams: { page?: string }
+}) {
+  const categoryName = decodeURIComponent(params.category)
+  const allPosts = getAllPosts()
   const categories = getCategories()
-  const exists = categories.some((c) => c.name === category)
-  if (!exists && posts.length === 0) notFound()
+  const catPosts = allPosts.filter((p) => p.category === categoryName)
+
+  if (catPosts.length === 0 && !categories.find((c) => c.name === categoryName)) {
+    notFound()
+  }
+
+  const page = Math.max(1, parseInt(searchParams.page || "1", 10) || 1)
+  const totalPages = Math.max(1, Math.ceil(catPosts.length / PAGE_SIZE))
+  const current = Math.min(page, totalPages)
+  const start = (current - 1) * PAGE_SIZE
+  const posts = catPosts.slice(start, start + PAGE_SIZE)
 
   return (
-    <div className="container-blog py-10">
-      <Link
-        href="/"
-        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary mb-6"
-      >
-        <ArrowLeft className="h-4 w-4" /> 홈으로
-      </Link>
-
-      <div className="mb-8">
-        <p className="text-sm text-primary font-medium">카테고리</p>
-        <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mt-1">{category}</h1>
-        <p className="text-muted-foreground mt-2">{posts.length}개의 글이 있습니다.</p>
-      </div>
-
-      <AdBanner />
-
-      <div className="grid gap-8 lg:grid-cols-[1fr_300px] mt-8">
-        <div>
-          {posts.length === 0 ? (
-            <div className="rounded-xl border bg-card p-12 text-center text-muted-foreground">
-              이 카테고리에는 아직 글이 없습니다.
-            </div>
-          ) : (
-            <div className="grid gap-6 sm:grid-cols-2">
-              {posts.map((p) => (
-                <PostCard key={p.slug} post={p} />
-              ))}
-            </div>
-          )}
-        </div>
-        <Sidebar />
+    <div className="blog-container">
+      <BlogHeader />
+      <FeaturedPosts posts={catPosts.length > 0 ? catPosts : allPosts} />
+      <div className="flex" style={{ minHeight: 500 }}>
+        <CategorySidebar
+          categories={categories}
+          totalCount={allPosts.length}
+          selectedCategory={categoryName}
+        />
+        <PostTable
+          posts={posts}
+          allCount={catPosts.length}
+          label={categoryName}
+          currentPage={current}
+          totalPages={totalPages}
+          basePath={`/category/${params.category}`}
+        />
       </div>
     </div>
   )

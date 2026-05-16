@@ -1,11 +1,6 @@
 import type { Metadata } from "next"
 import Script from "next/script"
-import { GeistSans } from "geist/font/sans"
-import { GeistMono } from "geist/font/mono"
 import "./globals.css"
-import { ThemeProvider } from "@/components/ThemeProvider"
-import { Header } from "@/components/Header"
-import { Footer } from "@/components/Footer"
 import { ADSENSE_CLIENT } from "@/components/AdSense"
 
 export const metadata: Metadata = {
@@ -29,7 +24,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ko" suppressHydrationWarning className={`${GeistSans.variable} ${GeistMono.variable}`}>
+    <html lang="ko" suppressHydrationWarning>
       <head>
         <Script
           id="adsense-script"
@@ -40,12 +35,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
         <meta name="google-adsense-account" content={ADSENSE_CLIENT} />
       </head>
-      <body className="min-h-screen flex flex-col font-sans">
-        <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
-          <Header />
-          <main className="flex-1">{children}</main>
-          <Footer />
-        </ThemeProvider>
+      <body>
+        {children}
       </body>
     </html>
   )
