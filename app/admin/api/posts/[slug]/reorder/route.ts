@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
-import { getAllPosts, updatePost, getPostBySlug } from "@/lib/posts"
+import { revalidatePath } from "next/cache"
+import { getAllPosts, updatePost } from "@/lib/posts"
 
 export async function POST(req: Request, { params }: { params: { slug: string } }) {
   try {
@@ -13,15 +14,12 @@ export async function POST(req: Request, { params }: { params: { slug: string } 
       return NextResponse.json({ ok: false, error: "Cannot move" }, { status: 400 })
     }
 
-    // Swap dates between the two posts to change display order
     const postA = allPosts[idx]
     const postB = allPosts[swapIdx]
-    const dateA = postA.date
-    const dateB = postB.date
+    updatePost(postA.slug, { ...postA, date: postB.date })
+    updatePost(postB.slug, { ...postB, date: postA.date })
 
-    updatePost(postA.slug, { ...postA, tags: postA.tags, date: dateB })
-    updatePost(postB.slug, { ...postB, tags: postB.tags, date: dateA })
-
+    revalidatePath("/", "layout")
     return NextResponse.json({ ok: true })
   } catch (e) {
     return NextResponse.json({ ok: false, error: String(e) }, { status: 500 })

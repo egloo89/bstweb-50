@@ -1,6 +1,9 @@
 import { getAllPosts } from "@/lib/posts"
 import { getCategories } from "@/lib/categories"
 import { BlogHeader } from "@/components/BlogHeader"
+
+export const dynamic = "force-dynamic"
+export const revalidate = 0
 import { CategorySidebar } from "@/components/CategorySidebar"
 import { FeaturedPosts } from "@/components/FeaturedPosts"
 import { PostTable } from "@/components/PostTable"

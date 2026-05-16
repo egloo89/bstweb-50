@@ -3,14 +3,13 @@ import { getAllPosts } from "@/lib/posts"
 import { getCategories, getPostsByCategory } from "@/lib/categories"
 import { BlogHeader } from "@/components/BlogHeader"
 import { CategorySidebar } from "@/components/CategorySidebar"
+
+export const dynamic = "force-dynamic"
+export const revalidate = 0
 import { FeaturedPosts } from "@/components/FeaturedPosts"
 import { PostTable } from "@/components/PostTable"
 
 const PAGE_SIZE = 15
-
-export async function generateStaticParams() {
-  return getCategories().map((c) => ({ category: c.slug }))
-}
 
 export function generateMetadata({ params }: { params: { category: string } }) {
   const name = decodeURIComponent(params.category)

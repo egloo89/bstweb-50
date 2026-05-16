@@ -3,14 +3,13 @@ import { notFound } from "next/navigation"
 import { Calendar, Tag, ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react"
 import { getAllPosts, getPostBySlug } from "@/lib/posts"
 import { getCategories } from "@/lib/categories"
+
+export const dynamic = "force-dynamic"
+export const revalidate = 0
 import { CategorySidebar } from "@/components/CategorySidebar"
 import { BlogHeader } from "@/components/BlogHeader"
 import { MDXContent } from "@/components/MDXContent"
 import { AdInArticle } from "@/components/AdSense"
-
-export async function generateStaticParams() {
-  return getAllPosts(true).map((p) => ({ slug: p.slug }))
-}
 
 export function generateMetadata({ params }: { params: { slug: string } }) {
   const post = getPostBySlug(params.slug)
