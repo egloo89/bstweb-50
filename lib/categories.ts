@@ -25,8 +25,9 @@ let _mem: CategoryData | null = null
 
 async function kvGet(): Promise<CategoryData | null> {
   try {
-    const { kv } = await import("@vercel/kv")
-    const data = await kv.get<CategoryData>(KV_KEY)
+    const { Redis } = await import("@upstash/redis")
+    const redis = Redis.fromEnv()
+    const data = await redis.get<CategoryData>(KV_KEY)
     if (data && Array.isArray(data.list)) return data
   } catch {}
   return null
@@ -34,8 +35,9 @@ async function kvGet(): Promise<CategoryData | null> {
 
 async function kvSet(data: CategoryData): Promise<void> {
   try {
-    const { kv } = await import("@vercel/kv")
-    await kv.set(KV_KEY, data)
+    const { Redis } = await import("@upstash/redis")
+    const redis = Redis.fromEnv()
+    await redis.set(KV_KEY, data)
   } catch {}
 }
 
