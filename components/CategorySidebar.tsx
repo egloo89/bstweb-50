@@ -19,6 +19,7 @@ interface Props {
 export function CategorySidebar({ categories, totalCount, selectedCategory }: Props) {
   const pathname = usePathname()
   const isAll = !selectedCategory && (pathname === "/" || pathname === "/blog")
+  const isPopular = pathname === "/popular"
 
   return (
     <aside className="w-[220px] md:w-[240px] shrink-0 border-r border-gray-100 bg-[#f8f9fc] min-h-full">
@@ -39,10 +40,12 @@ export function CategorySidebar({ categories, totalCount, selectedCategory }: Pr
 
         {/* 인기글 */}
         <Link
-          href="/blog?sort=popular"
-          className="flex items-center gap-2.5 px-5 py-2.5 text-[13px] md:text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+          href="/popular"
+          className={`flex items-center gap-2.5 px-5 py-2.5 text-[13px] md:text-sm transition-colors ${
+            isPopular ? "bg-[#4361ee]/10 text-[#4361ee] font-semibold" : "text-gray-700 hover:bg-gray-100"
+          }`}
         >
-          <Flame className="h-4 w-4 text-orange-400 shrink-0" />
+          <Flame className={`h-4 w-4 shrink-0 ${isPopular ? "text-[#4361ee]" : "text-orange-400"}`} />
           인기글
         </Link>
 
