@@ -15,9 +15,9 @@ export const metadata = {
   description: "Black Bay의 모든 글을 확인하세요.",
 }
 
-export default function BlogPage({ searchParams }: { searchParams: { page?: string } }) {
+export default async function BlogPage({ searchParams }: { searchParams: { page?: string } }) {
   const allPosts = getAllPosts()
-  const categories = getCategories()
+  const categories = await getCategories()
   const page = Math.max(1, parseInt(searchParams.page || "1", 10) || 1)
   const totalPages = Math.max(1, Math.ceil(allPosts.length / PAGE_SIZE))
   const current = Math.min(page, totalPages)

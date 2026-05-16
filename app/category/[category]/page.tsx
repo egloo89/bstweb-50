@@ -16,7 +16,7 @@ export function generateMetadata({ params }: { params: { category: string } }) {
   return { title: `${name} - 카테고리` }
 }
 
-export default function CategoryPage({
+export default async function CategoryPage({
   params,
   searchParams,
 }: {
@@ -25,8 +25,8 @@ export default function CategoryPage({
 }) {
   const categoryName = decodeURIComponent(params.category)
   const allPosts = getAllPosts()
-  const categories = getCategories()
-  const catPosts = getPostsByCategory(categoryName)
+  const categories = await getCategories()
+  const catPosts = await getPostsByCategory(categoryName)
 
   if (catPosts.length === 0 && !categories.find((c) => c.name === categoryName)) {
     notFound()

@@ -13,9 +13,9 @@ export const metadata = {
   description: "조회수가 높은 인기 글 모음입니다.",
 }
 
-export default function PopularPage() {
+export default async function PopularPage() {
   const allPosts = getAllPosts()
-  const categories = getCategories()
+  const categories = await getCategories()
 
   const posts = [...allPosts]
     .sort((a, b) => (b.views ?? 0) - (a.views ?? 0))

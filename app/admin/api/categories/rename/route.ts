@@ -14,10 +14,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "이름이 비어있습니다" }, { status: 400 })
     }
 
-    // Update category list + alias map (works on Vercel via /tmp + memory)
-    writeCategoryRename(oldName, trimmedNew)
+    // Update KV + alias map
+    await writeCategoryRename(oldName, trimmedNew)
 
-    // Try to update post frontmatter (works locally; fails silently on Vercel read-only FS)
+    // Try to update post frontmatter (works locally; silent on Vercel read-only FS)
     try {
       const posts = getAllPosts(true)
       for (const post of posts) {

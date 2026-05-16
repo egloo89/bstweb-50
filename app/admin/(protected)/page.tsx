@@ -6,13 +6,13 @@ import { AdminPostTable } from "@/components/AdminPostTable"
 
 export const dynamic = "force-dynamic"
 
-export default function AdminDashboard({
+export default async function AdminDashboard({
   searchParams,
 }: {
   searchParams: { category?: string }
 }) {
   const allPosts = getAllPosts(true)
-  const categories = getCategories()
+  const categories = await getCategories()
   const selectedCategory = searchParams.category
 
   const posts = selectedCategory

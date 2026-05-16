@@ -3,7 +3,7 @@ import { revalidatePath } from "next/cache"
 import { readCategoryList, writeCategoryList } from "@/lib/categories"
 
 export async function GET() {
-  return NextResponse.json({ ok: true, categories: readCategoryList() })
+  return NextResponse.json({ ok: true, categories: await readCategoryList() })
 }
 
 export async function PUT(req: Request) {
@@ -13,7 +13,7 @@ export async function PUT(req: Request) {
       return NextResponse.json({ ok: false, error: "잘못된 형식" }, { status: 400 })
     }
     const list = categories.map((c: unknown) => String(c).trim()).filter(Boolean)
-    writeCategoryList(list)
+    await writeCategoryList(list)
     revalidatePath("/", "layout")
     return NextResponse.json({ ok: true, categories: list })
   } catch (e) {
