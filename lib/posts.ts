@@ -28,7 +28,7 @@ function ensurePostsDir() {
 
 export function getAllPosts(includeUnpublished = false): Post[] {
   ensurePostsDir()
-  const files = fs.readdirSync(POSTS_DIR).filter((f) => f.endsWith(".mdx"))
+  const files = fs.readdirSync(POSTS_DIR).filter((f) => f.endsWith(".mdx") && !f.startsWith("_"))
   const posts: Post[] = files.map((file) => {
     const slug = file.replace(/\.mdx$/, "")
     const fullPath = path.join(POSTS_DIR, file)
