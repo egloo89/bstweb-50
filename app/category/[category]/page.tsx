@@ -26,7 +26,7 @@ export default function CategoryPage({
   const categoryName = decodeURIComponent(params.category)
   const allPosts = getAllPosts()
   const categories = getCategories()
-  const catPosts = allPosts.filter((p) => p.category === categoryName)
+  const catPosts = getPostsByCategory(categoryName)
 
   if (catPosts.length === 0 && !categories.find((c) => c.name === categoryName)) {
     notFound()

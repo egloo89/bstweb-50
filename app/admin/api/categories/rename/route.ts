@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { revalidatePath } from "next/cache"
-import { readCategoryList, writeCategoryList } from "@/lib/categories"
+import { writeCategoryRename } from "@/lib/categories"
 import { getAllPosts, updatePost } from "@/lib/posts"
 
 export async function POST(req: Request) {
@@ -14,18 +14,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "이름이 비어있습니다" }, { status: 400 })
     }
 
-    // Update _categories.json
-    const list = readCategoryList()
-    const updated = list.map((c) => (c === oldName ? trimmedNew : c))
-    writeCategoryList(updated)
+    // Update category list + alias map (works on Vercel via /tmp + memory)
+    writeCategoryRename(oldName, trimmedNew)
 
-    // Update all posts that have the old category
-    const posts = getAllPosts(true)
-    for (const post of posts) {
-      if (post.category === oldName) {
-        updatePost(post.slug, { ...post, category: trimmedNew })
+    // Try to update post frontmatter (works locally; fails silently on Vercel read-only FS)
+    try {
+      const posts = getAllPosts(true)
+      for (const post of posts) {
+        if (post.category === oldName) {
+          updatePost(post.slug, { ...post, category: trimmedNew })
+        }
       }
-    }
+    } catch {}
 
     revalidatePath("/", "layout")
     return NextResponse.json({ ok: true })
