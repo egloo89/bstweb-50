@@ -36,11 +36,16 @@ export function AdminSidebar({ categories: initialCategories, allCount, selected
   async function saveCategories(list: string[]) {
     setSaving(true)
     try {
-      await fetch("/admin/api/categories", {
+      const res = await fetch("/admin/api/categories", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ categories: list }),
       })
+      const data = await res.json()
+      if (!res.ok || !data.ok) {
+        alert(`저장 실패: ${data.error || "알 수 없는 오류"}`)
+        return
+      }
       router.refresh()
     } finally {
       setSaving(false)
@@ -85,16 +90,43 @@ export function AdminSidebar({ categories: initialCategories, allCount, selected
     setRenameVal(cats[i])
   }
 
-  function commitRename(i: number) {
-    const name = renameVal.trim()
-    if (!name || (name !== cats[i] && cats.includes(name))) {
+  async function commitRename(i: number) {
+    const newName = renameVal.trim()
+    const oldName = cats[i]
+    if (!newName || (newName !== oldName && cats.includes(newName))) {
       setRenamingIdx(null)
       return
     }
-    const next = cats.map((c, idx) => (idx === i ? name : c))
-    setCats(next)
+    if (newName === oldName) {
+      setRenamingIdx(null)
+      return
+    }
     setRenamingIdx(null)
-    saveCategories(next)
+    setSaving(true)
+    try {
+      const res = await fetch("/admin/api/categories/rename", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ oldName, newName }),
+      })
+      const data = await res.json()
+      if (!res.ok || !data.ok) {
+        alert(`저장 실패: ${data.error || "알 수 없는 오류"}`)
+        return
+      }
+      setCats((prev) => prev.map((c, idx) => (idx === i ? newName : c)))
+      setCounts((prev) => {
+        const next = { ...prev }
+        if (oldName !== newName) {
+          next[newName] = prev[oldName] ?? 0
+          delete next[oldName]
+        }
+        return next
+      })
+      router.refresh()
+    } finally {
+      setSaving(false)
+    }
   }
 
   async function handleLogout() {
