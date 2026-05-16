@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import Image from "next/image"
 import { LayoutDashboard } from "lucide-react"
 
 export function BlogHeader() {
@@ -8,10 +9,8 @@ export function BlogHeader() {
     <header className="border-b border-gray-200 bg-white">
       <div className="flex h-14 md:h-16 items-center justify-between px-5 md:px-7">
         <Link href="/" className="flex items-center gap-2.5">
-          <div className="h-8 w-8 rounded-lg bg-[#4361ee] flex items-center justify-center shadow-sm">
-            <span className="text-white text-sm font-bold">B</span>
-          </div>
-          <span className="text-base md:text-lg font-bold text-gray-800 tracking-tight">BoostWeb Blog</span>
+          <Image src="/blackbay-logo.svg" alt="Black Bay" width={36} height={36} className="shrink-0" />
+          <span className="text-base md:text-lg font-bold text-gray-800 tracking-tight">Black Bay</span>
         </Link>
 
         <Link

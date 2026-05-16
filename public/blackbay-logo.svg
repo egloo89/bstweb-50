@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <!-- Background circle -->
+  <circle cx="100" cy="100" r="100" fill="#0a0a0a"/>
+
+  <!-- Letter B -->
+  <text x="100" y="118" font-family="Georgia, serif" font-size="110" font-weight="bold" fill="white" text-anchor="middle" dominant-baseline="middle">B</text>
+
+  <!-- Wave overlay at bottom -->
+  <clipPath id="bottomClip">
+    <rect x="0" y="130" width="200" height="70"/>
+  </clipPath>
+  <g clip-path="url(#bottomClip)">
+    <path d="M0 145 Q25 135 50 145 Q75 155 100 145 Q125 135 150 145 Q175 155 200 145 L200 200 L0 200 Z" fill="#1a6bb5" opacity="0.85"/>
+    <path d="M0 158 Q25 148 50 158 Q75 168 100 158 Q125 148 150 158 Q175 168 200 158 L200 200 L0 200 Z" fill="#1a6bb5" opacity="0.6"/>
+  </g>
+</svg>

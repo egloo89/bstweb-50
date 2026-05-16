@@ -12,7 +12,7 @@ const PAGE_SIZE = 15
 
 export const metadata = {
   title: "전체글보기",
-  description: "BoostWeb Blog의 모든 글을 확인하세요.",
+  description: "Black Bay의 모든 글을 확인하세요.",
 }
 
 export default function BlogPage({ searchParams }: { searchParams: { page?: string } }) {
