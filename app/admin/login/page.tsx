@@ -46,7 +46,7 @@ export default function LoginPage() {
             <BookOpen className="h-6 w-6" />
           </div>
           <h1 className="text-xl font-bold tracking-tight">관리자 로그인</h1>
-          <p className="text-sm text-muted-foreground mt-1">BoostWeb Blog 관리 콘솔</p>
+          <p className="text-sm text-muted-foreground mt-1">Black Bay 관리 콘솔</p>
         </div>
 
         <div className="space-y-4">

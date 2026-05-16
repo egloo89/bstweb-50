@@ -10,14 +10,14 @@ import { ADSENSE_CLIENT } from "@/components/AdSense"
 
 export const metadata: Metadata = {
   title: {
-    default: "BoostWeb Blog - AI & 웹개발 인사이트",
-    template: "%s | BoostWeb Blog",
+    default: "Black Bay - AI & 웹개발 인사이트",
+    template: "%s | Black Bay",
   },
   description: "AI, 웹개발, 디자인, 생산성에 대한 깊이 있는 한국어 기술 블로그.",
   keywords: ["AI", "웹개발", "프로그래밍", "Next.js", "한국 블로그"],
-  authors: [{ name: "BoostWeb" }],
+  authors: [{ name: "Black Bay" }],
   openGraph: {
-    title: "BoostWeb Blog",
+    title: "Black Bay",
     description: "AI & 웹개발 인사이트 블로그",
     type: "website",
     locale: "ko_KR",

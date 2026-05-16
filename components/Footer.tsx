@@ -10,7 +10,7 @@ export function Footer() {
             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
               <BookOpen className="h-4 w-4" />
             </span>
-            <span className="text-lg">BoostWeb Blog</span>
+            <span className="text-lg">Black Bay</span>
           </Link>
           <p className="text-sm text-muted-foreground max-w-md">
             AI와 웹 개발, 디자인에 관한 깊이 있는 인사이트를 공유합니다. 매주 새로운 글로 찾아뵙겠습니다.
@@ -37,7 +37,7 @@ export function Footer() {
       </div>
       <div className="border-t">
         <div className="container-blog py-4 text-xs text-muted-foreground flex flex-col md:flex-row justify-between gap-2">
-          <p>© {new Date().getFullYear()} BoostWeb Blog. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} Black Bay. All rights reserved.</p>
           <p>Built with Next.js & Tailwind CSS</p>
         </div>
       </div>

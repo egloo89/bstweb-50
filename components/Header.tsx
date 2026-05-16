@@ -28,7 +28,7 @@ export function Header() {
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
             <BookOpen className="h-4 w-4" />
           </span>
-          <span className="text-lg">BoostWeb Blog</span>
+          <span className="text-lg">Black Bay</span>
         </Link>
 
         <nav className="hidden md:flex items-center gap-6">
