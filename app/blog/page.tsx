@@ -26,7 +26,9 @@ export default function BlogPage({ searchParams }: { searchParams: { page?: stri
       <BlogHeader />
       <FeaturedPosts posts={allPosts} />
       <div className="flex" style={{ minHeight: 500 }}>
-        <CategorySidebar categories={categories} totalCount={allPosts.length} />
+        <div className="hidden md:block">
+          <CategorySidebar categories={categories} totalCount={allPosts.length} />
+        </div>
         <PostTable
           posts={posts}
           allCount={allPosts.length}

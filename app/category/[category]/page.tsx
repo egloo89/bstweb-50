@@ -44,11 +44,13 @@ export default function CategoryPage({
       <BlogHeader />
       <FeaturedPosts posts={catPosts.length > 0 ? catPosts : allPosts} />
       <div className="flex" style={{ minHeight: 500 }}>
-        <CategorySidebar
-          categories={categories}
-          totalCount={allPosts.length}
-          selectedCategory={categoryName}
-        />
+        <div className="hidden md:block">
+          <CategorySidebar
+            categories={categories}
+            totalCount={allPosts.length}
+            selectedCategory={categoryName}
+          />
+        </div>
         <PostTable
           posts={posts}
           allCount={catPosts.length}

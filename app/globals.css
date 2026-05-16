@@ -39,8 +39,15 @@
 @layer components {
   .blog-container {
     @apply mx-auto w-full bg-white shadow-sm;
-    max-width: 1060px;
+    max-width: 1200px;
     min-height: 100vh;
+  }
+
+  @media (max-width: 768px) {
+    .blog-container {
+      max-width: 100%;
+      box-shadow: none;
+    }
   }
 
   .prose-blog {

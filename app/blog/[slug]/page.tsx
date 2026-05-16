@@ -65,11 +65,13 @@ export default function PostPage({ params }: { params: { slug: string } }) {
     <div className="blog-container">
       <BlogHeader />
       <div className="flex" style={{ minHeight: 600 }}>
-        <CategorySidebar
-          categories={categories}
-          totalCount={allPosts.length}
-          selectedCategory={post.category}
-        />
+        <div className="hidden md:block">
+          <CategorySidebar
+            categories={categories}
+            totalCount={allPosts.length}
+            selectedCategory={post.category}
+          />
+        </div>
         <main className="flex-1 min-w-0 px-8 py-7">
           <Link href="/blog" className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-[#4361ee] mb-5 transition-colors">
             <ArrowLeft className="h-3.5 w-3.5" /> 목록으로

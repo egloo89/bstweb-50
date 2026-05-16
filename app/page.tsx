@@ -25,7 +25,9 @@ export default function HomePage({ searchParams }: { searchParams: { page?: stri
 
       {/* 본문: 카테고리 사이드바 + 포스트 테이블 */}
       <div className="flex" style={{ minHeight: 500 }}>
-        <CategorySidebar categories={categories} totalCount={allPosts.length} />
+        <div className="hidden md:block">
+          <CategorySidebar categories={categories} totalCount={allPosts.length} />
+        </div>
         <PostTable
           posts={posts}
           allCount={allPosts.length}
