@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useState, useEffect } from "react"
-import { Moon, Sun, Menu, X, BookOpen } from "lucide-react"
+import { Moon, Sun, Menu, X, BookOpen, LayoutDashboard } from "lucide-react"
 import { useTheme } from "next-themes"
 import { cn } from "@/lib/utils"
 
@@ -44,6 +44,13 @@ export function Header() {
         </nav>
 
         <div className="flex items-center gap-2">
+          <Link
+            href="/admin"
+            className="hidden md:inline-flex items-center gap-1.5 h-9 px-3 rounded-md border bg-background hover:bg-accent text-sm font-medium transition-colors"
+          >
+            <LayoutDashboard className="h-4 w-4" />
+            관리자
+          </Link>
           <button
             type="button"
             aria-label="테마 변경"
@@ -75,6 +82,14 @@ export function Header() {
               {item.label}
             </Link>
           ))}
+          <Link
+            href="/admin"
+            className="py-2 text-sm font-medium text-primary hover:opacity-80 flex items-center gap-1.5"
+            onClick={() => setOpen(false)}
+          >
+            <LayoutDashboard className="h-4 w-4" />
+            관리자
+          </Link>
         </nav>
       </div>
     </header>

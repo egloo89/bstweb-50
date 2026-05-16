@@ -3,12 +3,16 @@ import { cookies } from "next/headers"
 export const AUTH_COOKIE = "bw_admin_auth"
 const AUTH_VALUE = "authenticated"
 
+export function getAdminUsername(): string {
+  return process.env.ADMIN_USERNAME || "admin"
+}
+
 export function getAdminPassword(): string {
   return process.env.ADMIN_PASSWORD || "admin123"
 }
 
-export function verifyPassword(password: string): boolean {
-  return password === getAdminPassword()
+export function verifyCredentials(username: string, password: string): boolean {
+  return username === getAdminUsername() && password === getAdminPassword()
 }
 
 export function isAuthenticated(): boolean {
@@ -27,7 +31,7 @@ export function getAuthCookieOptions() {
     httpOnly: true,
     sameSite: "lax" as const,
     path: "/",
-    maxAge: 60 * 60 * 24, // 24h
+    maxAge: 60 * 60 * 24,
     secure: process.env.NODE_ENV === "production",
   }
 }
