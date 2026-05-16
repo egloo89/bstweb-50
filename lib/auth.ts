@@ -4,11 +4,11 @@ export const AUTH_COOKIE = "bw_admin_auth"
 const AUTH_VALUE = "authenticated"
 
 export function getAdminUsername(): string {
-  return process.env.ADMIN_USERNAME || "admin"
+  return process.env.ADMIN_USERNAME || "gunhwi1028"
 }
 
 export function getAdminPassword(): string {
-  return process.env.ADMIN_PASSWORD || "admin123"
+  return process.env.ADMIN_PASSWORD || "gnl243381"
 }
 
 export function verifyCredentials(username: string, password: string): boolean {
