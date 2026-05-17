@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { verifyCredentials, AUTH_COOKIE } from "@/lib/auth"
 
 export async function POST(req: Request) {
-  let body: { username?: string; password?: string } = {}
+  let body: { username?: string; password?: string; remember?: boolean } = {}
   try {
     body = await req.json()
   } catch {
@@ -20,7 +20,7 @@ export async function POST(req: Request) {
     httpOnly: true,
     sameSite: "lax",
     path: "/",
-    maxAge: 60 * 60 * 24,
+    maxAge: body.remember ? 60 * 60 * 24 * 365 : 60 * 60 * 8,
     secure: process.env.NODE_ENV === "production",
   })
   return res

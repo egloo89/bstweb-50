@@ -1,13 +1,12 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
 import { Lock, User, BookOpen } from "lucide-react"
 
 export default function LoginPage() {
-  const router = useRouter()
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
+  const [remember, setRemember] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
@@ -19,7 +18,7 @@ export default function LoginPage() {
       const res = await fetch("/admin/api/auth", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ username, password, remember }),
       })
       const data = await res.json()
       if (!res.ok || !data.ok) {
@@ -27,8 +26,7 @@ export default function LoginPage() {
         setLoading(false)
         return
       }
-      router.push("/admin")
-      router.refresh()
+      window.location.href = "/admin"
     } catch {
       setError("네트워크 오류")
       setLoading(false)
@@ -80,6 +78,16 @@ export default function LoginPage() {
                 autoComplete="current-password"
               />
             </div>
+          </label>
+
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={remember}
+              onChange={(e) => setRemember(e.target.checked)}
+              className="w-4 h-4 rounded border-gray-300 accent-primary"
+            />
+            <span className="text-sm text-muted-foreground">로그인 유지</span>
           </label>
         </div>
 
