@@ -15,12 +15,14 @@ import TableHeader from "@tiptap/extension-table-header"
 import TableCell from "@tiptap/extension-table-cell"
 import Placeholder from "@tiptap/extension-placeholder"
 import { Node, mergeAttributes } from "@tiptap/core"
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
+import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage"
+import { storage } from "@/lib/firebase"
 import {
   Bold, Italic, Underline as UnderlineIcon, Strikethrough,
   AlignLeft, AlignCenter, AlignRight, List, ListOrdered,
   Quote, Code, Minus, ImageIcon, Video, Map, Link as LinkIcon,
-  ChevronDown, X, Table as TableIcon, Undo, Redo, Type,
+  ChevronDown, X, Table as TableIcon, Undo, Redo, Type, Upload, Loader2,
 } from "lucide-react"
 
 /* ── Custom iframe node (지도 등) ─────────────────────────────────── */
@@ -89,8 +91,14 @@ export function RichEditor({ content, onChange }: RichEditorProps) {
   const [headingOpen, setHeadingOpen] = useState(false)
   const headingRef = useRef<HTMLDivElement>(null)
 
+  // image upload state
+  const [imgUploading, setImgUploading] = useState(false)
+  const [imgProgress, setImgProgress] = useState(0)
+  const [imgError, setImgError] = useState<string | null>(null)
+  const [imgPreview, setImgPreview] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
   // modal field state
-  const [imgUrl, setImgUrl] = useState("")
   const [videoUrl, setVideoUrl] = useState("")
   const [mapSrc, setMapSrc] = useState("")
   const [mapHeight, setMapHeight] = useState("400")
@@ -132,11 +140,40 @@ export function RichEditor({ content, onChange }: RichEditorProps) {
 
   if (!editor) return null
 
-  /* insert helpers */
-  function insertImage() {
-    if (!imgUrl.trim()) return
-    editor.chain().focus().setImage({ src: imgUrl.trim() }).run()
-    setImgUrl(""); setModal(null)
+  /* image upload to Firebase */
+  const uploadFile = useCallback((file: File) => {
+    if (!file.type.startsWith("image/")) { setImgError("이미지 파일만 업로드할 수 있습니다."); return }
+    setImgError(null)
+    setImgUploading(true)
+    setImgProgress(0)
+    setImgPreview(URL.createObjectURL(file))
+
+    const path = `blog-images/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`
+    const task = uploadBytesResumable(ref(storage, path), file)
+
+    task.on("state_changed",
+      snap => setImgProgress(Math.round(snap.bytesTransferred / snap.totalBytes * 100)),
+      err => { setImgError("업로드 실패: " + err.message); setImgUploading(false) },
+      async () => {
+        const url = await getDownloadURL(task.snapshot.ref)
+        editor.chain().focus().setImage({ src: url }).run()
+        setImgUploading(false)
+        setImgPreview(null)
+        setModal(null)
+      }
+    )
+  }, [editor])
+
+  function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (file) uploadFile(file)
+    e.target.value = ""
+  }
+
+  function onDrop(e: React.DragEvent) {
+    e.preventDefault()
+    const file = e.dataTransfer.files?.[0]
+    if (file) uploadFile(file)
   }
   function insertVideo() {
     if (!videoUrl.trim()) return
@@ -311,17 +348,50 @@ export function RichEditor({ content, onChange }: RichEditorProps) {
 
       {/* ── Modals ── */}
       {modal === "image" && (
-        <Modal title="이미지 삽입" onClose={() => setModal(null)}>
+        <Modal title="이미지 업로드" onClose={() => { if (!imgUploading) { setModal(null); setImgPreview(null); setImgError(null) } }}>
           <div className="space-y-3">
-            <label className="block text-xs font-medium text-gray-700">이미지 URL</label>
-            <input autoFocus type="url" value={imgUrl} onChange={e => setImgUrl(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && insertImage()}
-              className={inputCls} placeholder="https://example.com/image.jpg" />
-            {imgUrl && <img src={imgUrl} alt="" className="w-full h-32 object-cover rounded border" />}
-            <div className="flex justify-end gap-2 pt-1">
-              <button type="button" onClick={() => setModal(null)} className={`${modalBtn} text-gray-600 hover:bg-gray-100`}>취소</button>
-              <button type="button" onClick={insertImage} disabled={!imgUrl.trim()}
-                className={`${modalBtn} bg-[#4361ee] text-white hover:bg-[#3451d1] disabled:opacity-50`}>삽입</button>
+            {/* 숨김 파일 input */}
+            <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={onFileChange} />
+
+            {/* 드래그앤드롭 영역 */}
+            <div
+              onDragOver={e => e.preventDefault()}
+              onDrop={onDrop}
+              onClick={() => !imgUploading && fileInputRef.current?.click()}
+              className={`border-2 border-dashed rounded-lg flex flex-col items-center justify-center gap-2 cursor-pointer transition-colors
+                ${imgUploading ? "border-[#4361ee]/40 bg-blue-50 cursor-default" : "border-gray-200 hover:border-[#4361ee]/50 hover:bg-gray-50"}`}
+              style={{ minHeight: 140 }}
+            >
+              {imgUploading ? (
+                <>
+                  {imgPreview && <img src={imgPreview} alt="" className="h-20 w-auto rounded object-cover" />}
+                  <div className="flex items-center gap-2 text-sm text-[#4361ee]">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>업로드 중... {imgProgress}%</span>
+                  </div>
+                  <div className="w-40 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                    <div className="h-full bg-[#4361ee] transition-all" style={{ width: `${imgProgress}%` }} />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <Upload className="h-8 w-8 text-gray-300" />
+                  <div className="text-center">
+                    <p className="text-sm font-medium text-gray-600">클릭하거나 이미지를 드래그하세요</p>
+                    <p className="text-xs text-gray-400 mt-0.5">JPG, PNG, GIF, WEBP 지원</p>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {imgError && <p className="text-xs text-red-500">{imgError}</p>}
+
+            <div className="flex justify-end">
+              <button type="button" onClick={() => { setModal(null); setImgPreview(null); setImgError(null) }}
+                disabled={imgUploading}
+                className={`${modalBtn} text-gray-600 hover:bg-gray-100 disabled:opacity-50`}>
+                취소
+              </button>
             </div>
           </div>
         </Modal>
