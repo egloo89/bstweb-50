@@ -3,13 +3,13 @@ import { notFound } from "next/navigation"
 import { Calendar, Tag, ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react"
 import { getAllPosts, getPostBySlug } from "@/lib/posts"
 import { getCategories } from "@/lib/categories"
-
-export const dynamic = "force-dynamic"
-export const revalidate = 0
 import { CategorySidebar } from "@/components/CategorySidebar"
 import { BlogHeader } from "@/components/BlogHeader"
 import { MDXContent } from "@/components/MDXContent"
 import { AdInArticle } from "@/components/AdSense"
+
+export const dynamic = "force-dynamic"
+export const revalidate = 0
 
 export function generateMetadata({ params }: { params: { slug: string } }) {
   const post = getPostBySlug(params.slug)
@@ -17,12 +17,7 @@ export function generateMetadata({ params }: { params: { slug: string } }) {
   return {
     title: post.title,
     description: post.excerpt,
-    openGraph: {
-      title: post.title,
-      description: post.excerpt,
-      type: "article",
-      publishedTime: post.date,
-    },
+    openGraph: { title: post.title, description: post.excerpt, type: "article", publishedTime: post.date },
   }
 }
 
@@ -43,21 +38,48 @@ const CATEGORY_COLORS: Record<string, string> = {
   기타: "bg-gray-100 text-gray-600",
 }
 
-export default function PostPage({ params }: { params: { slug: string } }) {
+// HTML content로 저장된 새 글을 렌더링
+function HTMLContent({ html }: { html: string }) {
+  const mid = Math.floor(html.length / 2)
+  // split at a tag boundary near the middle
+  const splitAt = html.indexOf(">", mid) + 1 || mid
+  const first = html.slice(0, splitAt)
+  const second = html.slice(splitAt)
+  return (
+    <>
+      <div className="prose-content" dangerouslySetInnerHTML={{ __html: first }} />
+      <AdInArticle />
+      {second && <div className="prose-content" dangerouslySetInnerHTML={{ __html: second }} />}
+    </>
+  )
+}
+
+// MDX (구형 포스트) 렌더링 — 중간에 광고 삽입
+function LegacyContent({ content }: { content: string }) {
+  const paragraphs = content.split(/\n\n+/)
+  const half = Math.floor(paragraphs.length / 2)
+  const first = paragraphs.slice(0, half).join("\n\n")
+  const second = paragraphs.slice(half).join("\n\n")
+  return (
+    <>
+      <MDXContent source={first} />
+      <AdInArticle />
+      {second && <MDXContent source={second} />}
+    </>
+  )
+}
+
+export default async function PostPage({ params }: { params: { slug: string } }) {
   const post = getPostBySlug(params.slug)
   if (!post || !post.published) notFound()
 
   const allPosts = getAllPosts()
-  const categories = getCategories()
-  const idx = allPosts.findIndex((p) => p.slug === post.slug)
+  const categories = await getCategories()
+  const idx = allPosts.findIndex(p => p.slug === post.slug)
   const prevPost = idx < allPosts.length - 1 ? allPosts[idx + 1] : null
   const nextPost = idx > 0 ? allPosts[idx - 1] : null
 
-  const paragraphs = post.content.split(/\n\n+/)
-  const half = Math.floor(paragraphs.length / 2)
-  const firstHalf = paragraphs.slice(0, half).join("\n\n")
-  const secondHalf = paragraphs.slice(half).join("\n\n")
-
+  const isHTML = post.content.trimStart().startsWith("<")
   const colorClass = CATEGORY_COLORS[post.category] || CATEGORY_COLORS["기타"]
 
   return (
@@ -65,16 +87,13 @@ export default function PostPage({ params }: { params: { slug: string } }) {
       <BlogHeader />
       <div className="flex" style={{ minHeight: 600 }}>
         <div className="hidden md:block">
-          <CategorySidebar
-            categories={categories}
-            totalCount={allPosts.length}
-            selectedCategory={post.category}
-          />
+          <CategorySidebar categories={categories} totalCount={allPosts.length} selectedCategory={post.category} />
         </div>
         <main className="flex-1 min-w-0 px-8 py-7">
           <Link href="/blog" className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-[#4361ee] mb-5 transition-colors">
             <ArrowLeft className="h-3.5 w-3.5" /> 목록으로
           </Link>
+
           <header className="pb-5 border-b border-gray-100 mb-6">
             <span className={`inline-block text-[11px] px-2 py-0.5 rounded font-medium mb-3 ${colorClass}`}>
               {post.category}
@@ -87,28 +106,33 @@ export default function PostPage({ params }: { params: { slug: string } }) {
               {post.tags.length > 0 && (
                 <span className="flex items-center gap-1.5 flex-wrap">
                   <Tag className="h-3.5 w-3.5" />
-                  {post.tags.map((t) => (
+                  {post.tags.map(t => (
                     <span key={t} className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-500">#{t}</span>
                   ))}
                 </span>
               )}
             </div>
           </header>
+
           {post.thumbnail && (
             <img src={post.thumbnail} alt={post.title} className="w-full rounded-lg mb-6 max-h-80 object-cover" />
           )}
+
           <article>
-            <MDXContent source={firstHalf} />
-            <AdInArticle />
-            {secondHalf && <MDXContent source={secondHalf} />}
+            {isHTML
+              ? <HTMLContent html={post.content} />
+              : <LegacyContent content={post.content} />
+            }
           </article>
+
           {post.tags.length > 0 && (
             <div className="mt-8 pt-5 border-t border-gray-100 flex flex-wrap gap-2">
-              {post.tags.map((t) => (
+              {post.tags.map(t => (
                 <span key={t} className="text-xs bg-gray-100 text-gray-600 px-2.5 py-1 rounded-full">#{t}</span>
               ))}
             </div>
           )}
+
           <div className="mt-8 border-t border-gray-100 pt-5 grid grid-cols-2 gap-3 text-sm">
             {prevPost ? (
               <Link href={`/blog/${prevPost.slug}`} className="flex items-center gap-2 text-gray-500 hover:text-[#4361ee] transition-colors">
