@@ -5,9 +5,26 @@ import { useRouter } from "next/navigation"
 import { Save, X, Upload, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { slugify } from "@/lib/utils"
-import { RichEditor } from "@/components/RichEditor"
-import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage"
-import { storage } from "@/lib/firebase"
+import dynamic from "next/dynamic"
+
+const RichEditor = dynamic(
+  () => import("@/components/RichEditor").then(m => ({ default: m.RichEditor })),
+  { ssr: false, loading: () => <div style={{ minHeight: 520 }} className="flex items-center justify-center text-gray-400 text-sm">에디터 로딩 중...</div> }
+)
+
+async function uploadThumb(file: File, onProgress: (p: number) => void): Promise<string> {
+  const { ref, uploadBytesResumable, getDownloadURL } = await import("firebase/storage")
+  const { storage } = await import("@/lib/firebase")
+  return new Promise((resolve, reject) => {
+    const path = `thumbnails/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`
+    const task = uploadBytesResumable(ref(storage, path), file)
+    task.on("state_changed",
+      snap => onProgress(Math.round(snap.bytesTransferred / snap.totalBytes * 100)),
+      reject,
+      async () => resolve(await getDownloadURL(task.snapshot.ref))
+    )
+  })
+}
 
 export interface PostFormValues {
   slug: string
@@ -78,21 +95,16 @@ export function PostForm({ initial, mode, originalSlug }: PostFormProps) {
     if (!slugTouched) set("slug", slugify(v) || "untitled")
   }
 
-  const uploadThumbnail = useCallback((file: File) => {
+  const uploadThumbnail = useCallback(async (file: File) => {
     if (!file.type.startsWith("image/")) return
     setThumbUploading(true)
     setThumbProgress(0)
-    const path = `thumbnails/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`
-    const task = uploadBytesResumable(ref(storage, path), file)
-    task.on("state_changed",
-      snap => setThumbProgress(Math.round(snap.bytesTransferred / snap.totalBytes * 100)),
-      () => setThumbUploading(false),
-      async () => {
-        const url = await getDownloadURL(task.snapshot.ref)
-        set("thumbnail", url)
-        setThumbUploading(false)
-      }
-    )
+    try {
+      const url = await uploadThumb(file, setThumbProgress)
+      set("thumbnail", url)
+    } catch { /* silent */ } finally {
+      setThumbUploading(false)
+    }
   }, [])
 
   function onThumbFileChange(e: React.ChangeEvent<HTMLInputElement>) {

@@ -8,16 +8,19 @@ import Youtube from "@tiptap/extension-youtube"
 import TextAlign from "@tiptap/extension-text-align"
 import Underline from "@tiptap/extension-underline"
 import { Color } from "@tiptap/extension-color"
-import TextStyle from "@tiptap/extension-text-style"
-import Table from "@tiptap/extension-table"
-import TableRow from "@tiptap/extension-table-row"
-import TableHeader from "@tiptap/extension-table-header"
-import TableCell from "@tiptap/extension-table-cell"
+import { TextStyle } from "@tiptap/extension-text-style"
+import { Table, TableRow, TableHeader, TableCell } from "@tiptap/extension-table"
 import Placeholder from "@tiptap/extension-placeholder"
 import { Node, mergeAttributes } from "@tiptap/core"
 import { useState, useEffect, useRef, useCallback } from "react"
-import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage"
-import { storage } from "@/lib/firebase"
+// firebase loaded lazily to avoid SSR issues
+let _fbStorage: import("firebase/storage").FirebaseStorage | null = null
+async function getFbStorage() {
+  if (_fbStorage) return _fbStorage
+  const { storage } = await import("@/lib/firebase")
+  _fbStorage = storage
+  return storage
+}
 import {
   Bold, Italic, Underline as UnderlineIcon, Strikethrough,
   AlignLeft, AlignCenter, AlignRight, List, ListOrdered,
@@ -141,27 +144,34 @@ export function RichEditor({ content, onChange }: RichEditorProps) {
   if (!editor) return null
 
   /* image upload to Firebase */
-  const uploadFile = useCallback((file: File) => {
+  const uploadFile = useCallback(async (file: File) => {
     if (!file.type.startsWith("image/")) { setImgError("이미지 파일만 업로드할 수 있습니다."); return }
     setImgError(null)
     setImgUploading(true)
     setImgProgress(0)
     setImgPreview(URL.createObjectURL(file))
 
-    const path = `blog-images/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`
-    const task = uploadBytesResumable(ref(storage, path), file)
+    try {
+      const { ref, uploadBytesResumable, getDownloadURL } = await import("firebase/storage")
+      const storage = await getFbStorage()
+      const path = `blog-images/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`
+      const task = uploadBytesResumable(ref(storage, path), file)
 
-    task.on("state_changed",
-      snap => setImgProgress(Math.round(snap.bytesTransferred / snap.totalBytes * 100)),
-      err => { setImgError("업로드 실패: " + err.message); setImgUploading(false) },
-      async () => {
-        const url = await getDownloadURL(task.snapshot.ref)
-        editor.chain().focus().setImage({ src: url }).run()
-        setImgUploading(false)
-        setImgPreview(null)
-        setModal(null)
-      }
-    )
+      task.on("state_changed",
+        snap => setImgProgress(Math.round(snap.bytesTransferred / snap.totalBytes * 100)),
+        err => { setImgError("업로드 실패: " + err.message); setImgUploading(false) },
+        async () => {
+          const url = await getDownloadURL(task.snapshot.ref)
+          editor.chain().focus().setImage({ src: url }).run()
+          setImgUploading(false)
+          setImgPreview(null)
+          setModal(null)
+        }
+      )
+    } catch (err: unknown) {
+      setImgError("업로드 실패: " + (err instanceof Error ? err.message : String(err)))
+      setImgUploading(false)
+    }
   }, [editor])
 
   function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {

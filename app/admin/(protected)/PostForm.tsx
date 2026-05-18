@@ -4,10 +4,41 @@ import { useState, useEffect, useRef, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { Save, X, Upload, Loader2 } from "lucide-react"
 import Link from "next/link"
+import dynamic from "next/dynamic"
 import { slugify } from "@/lib/utils"
-import { RichEditor } from "@/components/RichEditor"
-import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage"
-import { storage } from "@/lib/firebase"
+
+const RichEditor = dynamic(
+  () => import("@/components/RichEditor").then(m => ({ default: m.RichEditor })),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex items-center justify-center text-gray-400 text-sm" style={{ minHeight: 520 }}>
+        에디터 로딩 중...
+      </div>
+    ),
+  }
+)
+
+// lazy-load firebase to avoid SSR issues
+let _storage: import("firebase/storage").FirebaseStorage | null = null
+async function getStorage() {
+  if (_storage) return _storage
+  const { storage } = await import("@/lib/firebase")
+  _storage = storage
+  return storage
+}
+async function uploadToFirebase(file: File, path: string, onProgress: (p: number) => void): Promise<string> {
+  const { ref, uploadBytesResumable, getDownloadURL } = await import("firebase/storage")
+  const storage = await getStorage()
+  return new Promise((resolve, reject) => {
+    const task = uploadBytesResumable(ref(storage, path), file)
+    task.on("state_changed",
+      snap => onProgress(Math.round(snap.bytesTransferred / snap.totalBytes * 100)),
+      reject,
+      async () => resolve(await getDownloadURL(task.snapshot.ref))
+    )
+  })
+}
 
 export interface PostFormValues {
   slug: string
@@ -78,21 +109,19 @@ export function PostForm({ initial, mode, originalSlug }: PostFormProps) {
     if (!slugTouched) set("slug", slugify(v) || "untitled")
   }
 
-  const uploadThumbnail = useCallback((file: File) => {
+  const uploadThumbnail = useCallback(async (file: File) => {
     if (!file.type.startsWith("image/")) return
     setThumbUploading(true)
     setThumbProgress(0)
-    const path = `thumbnails/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`
-    const task = uploadBytesResumable(ref(storage, path), file)
-    task.on("state_changed",
-      snap => setThumbProgress(Math.round(snap.bytesTransferred / snap.totalBytes * 100)),
-      () => setThumbUploading(false),
-      async () => {
-        const url = await getDownloadURL(task.snapshot.ref)
-        set("thumbnail", url)
-        setThumbUploading(false)
-      }
-    )
+    try {
+      const path = `thumbnails/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`
+      const url = await uploadToFirebase(file, path, setThumbProgress)
+      set("thumbnail", url)
+    } catch {
+      // silent
+    } finally {
+      setThumbUploading(false)
+    }
   }, [])
 
   function onThumbFileChange(e: React.ChangeEvent<HTMLInputElement>) {
