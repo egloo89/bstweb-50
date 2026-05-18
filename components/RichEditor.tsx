@@ -6,7 +6,6 @@ import ImageExt from "@tiptap/extension-image"
 import LinkExt from "@tiptap/extension-link"
 import Youtube from "@tiptap/extension-youtube"
 import TextAlign from "@tiptap/extension-text-align"
-import Underline from "@tiptap/extension-underline"
 import { Color } from "@tiptap/extension-color"
 import { TextStyle } from "@tiptap/extension-text-style"
 import { Table, TableRow, TableHeader, TableCell } from "@tiptap/extension-table"
@@ -121,12 +120,15 @@ export function RichEditor({ content, onChange }: RichEditorProps) {
 
   const editor = useEditor({
     extensions: [
-      StarterKit.configure({ heading: { levels: [1, 2, 3, 4] } }),
+      // StarterKit v3 already includes: Bold, Italic, Strike, Underline, Link,
+      // Heading, BulletList, OrderedList, Code, CodeBlock, Blockquote, HorizontalRule, etc.
+      // Disable built-in Link so we can add a custom-configured one
+      StarterKit.configure({ heading: { levels: [1, 2, 3, 4] }, link: false }),
       ImageExt.configure({ allowBase64: true }),
       LinkExt.configure({ openOnClick: false, HTMLAttributes: { class: "text-[#4361ee] underline", target: "_blank" } }),
-      Youtube.configure({ width: "100%", height: 400 }),
+      Youtube.configure({ width: 640, height: 400 }),
       TextAlign.configure({ types: ["heading", "paragraph"] }),
-      Underline,
+      // Underline is already in StarterKit — do NOT add again
       Color,
       TextStyle,
       Table.configure({ resizable: false }),
