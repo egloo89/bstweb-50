@@ -1,15 +1,13 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import { Save, ArrowLeft } from "lucide-react"
+import { Save, X, Upload, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { slugify } from "@/lib/utils"
-import { BlogHeader } from "@/components/BlogHeader"
-
-const DEFAULT_CATEGORIES = [
-  "AI", "웹개발", "프로그래밍", "디자인", "생산성", "튜토리얼", "기타",
-]
+import { RichEditor } from "@/components/RichEditor"
+import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage"
+import { storage } from "@/lib/firebase"
 
 export interface PostFormValues {
   slug: string
@@ -33,7 +31,7 @@ const EMPTY: PostFormValues = {
   slug: "",
   title: "",
   date: new Date().toISOString().split("T")[0],
-  category: "AI",
+  category: "",
   tags: "",
   excerpt: "",
   thumbnail: "",
@@ -41,16 +39,7 @@ const EMPTY: PostFormValues = {
   content: "",
 }
 
-const inputCls = "w-full px-3 py-2 border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#4361ee]/30 text-sm"
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="block">
-      <span className="text-xs font-semibold text-gray-600 block mb-1.5">{label}</span>
-      {children}
-    </label>
-  )
-}
+const inputCls = "w-full px-3 py-2.5 border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#4361ee]/30 text-sm placeholder-gray-400"
 
 export function PostForm({ initial, mode, originalSlug }: PostFormProps) {
   const router = useRouter()
@@ -58,9 +47,30 @@ export function PostForm({ initial, mode, originalSlug }: PostFormProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [slugTouched, setSlugTouched] = useState(mode === "edit")
+  const [categories, setCategories] = useState<string[]>([])
+  const [htmlMode, setHtmlMode] = useState(false)
+
+  // thumbnail upload
+  const thumbFileRef = useRef<HTMLInputElement>(null)
+  const [thumbUploading, setThumbUploading] = useState(false)
+  const [thumbProgress, setThumbProgress] = useState(0)
+
+  useEffect(() => {
+    fetch("/admin/api/categories")
+      .then(r => r.json())
+      .then(data => {
+        if (data.ok && Array.isArray(data.categories)) {
+          setCategories(data.categories)
+          if (!values.category && data.categories.length > 0) {
+            setValues(v => ({ ...v, category: data.categories[0] }))
+          }
+        }
+      })
+      .catch(() => {})
+  }, [])
 
   function set<K extends keyof PostFormValues>(key: K, value: PostFormValues[K]) {
-    setValues((v) => ({ ...v, [key]: value }))
+    setValues(v => ({ ...v, [key]: value }))
   }
 
   function onTitleChange(v: string) {
@@ -68,11 +78,34 @@ export function PostForm({ initial, mode, originalSlug }: PostFormProps) {
     if (!slugTouched) set("slug", slugify(v) || "untitled")
   }
 
+  const uploadThumbnail = useCallback((file: File) => {
+    if (!file.type.startsWith("image/")) return
+    setThumbUploading(true)
+    setThumbProgress(0)
+    const path = `thumbnails/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`
+    const task = uploadBytesResumable(ref(storage, path), file)
+    task.on("state_changed",
+      snap => setThumbProgress(Math.round(snap.bytesTransferred / snap.totalBytes * 100)),
+      () => setThumbUploading(false),
+      async () => {
+        const url = await getDownloadURL(task.snapshot.ref)
+        set("thumbnail", url)
+        setThumbUploading(false)
+      }
+    )
+  }, [])
+
+  function onThumbFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (file) uploadThumbnail(file)
+    e.target.value = ""
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
     if (!values.title.trim() || !values.slug.trim()) {
-      setError("제목과 슬러그는 필수입니다.")
+      setError("제목은 필수입니다.")
       return
     }
     setLoading(true)
@@ -80,8 +113,8 @@ export function PostForm({ initial, mode, originalSlug }: PostFormProps) {
       slug: values.slug.trim(),
       title: values.title.trim(),
       date: values.date,
-      category: values.category,
-      tags: values.tags.split(",").map((t) => t.trim()).filter(Boolean),
+      category: values.category || (categories[0] ?? "기타"),
+      tags: values.tags.split(",").map(t => t.trim()).filter(Boolean),
       excerpt: values.excerpt,
       thumbnail: values.thumbnail,
       published: values.published,
@@ -111,144 +144,174 @@ export function PostForm({ initial, mode, originalSlug }: PostFormProps) {
   }
 
   return (
-    <div className="blog-container">
-      <BlogHeader />
-      <div className="px-6 md:px-10 py-6 max-w-4xl">
-        {/* 상단 */}
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <Link href="/admin" className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-[#4361ee] mb-2">
-              <ArrowLeft className="h-3.5 w-3.5" /> 목록으로
+    <div className="min-h-screen bg-[#edf0f5]">
+      <form onSubmit={onSubmit}>
+        {/* ── Top bar ── */}
+        <div className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between sticky top-0 z-30 shadow-sm">
+          <h1 className="text-base font-bold text-gray-800">
+            {mode === "create" ? "글쓰기" : "글 수정"}
+          </h1>
+          <div className="flex items-center gap-2">
+            <button type="submit" disabled={loading}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-[#4361ee] px-4 py-1.5 text-sm font-medium text-white hover:bg-[#3451d1] disabled:opacity-60 transition-colors">
+              {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+              {loading ? "저장 중..." : "저장"}
+            </button>
+            <Link href="/admin"
+              className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-gray-200 text-gray-400 hover:text-gray-600 hover:border-gray-300 transition-colors">
+              <X className="h-4 w-4" />
             </Link>
-            <h1 className="text-xl font-bold text-gray-800">
-              {mode === "create" ? "새 글 작성" : "글 수정"}
-            </h1>
           </div>
-          <button
-            type="submit"
-            form="post-form"
-            disabled={loading}
-            className="inline-flex items-center gap-2 rounded-lg bg-[#4361ee] px-4 py-2 text-sm font-medium text-white hover:bg-[#3451d1] disabled:opacity-60 transition-colors"
-          >
-            <Save className="h-4 w-4" />
-            {loading ? "저장 중..." : "저장"}
-          </button>
         </div>
 
-        {error && (
-          <div className="mb-4 rounded-md bg-red-50 text-red-600 p-3 text-sm border border-red-100">{error}</div>
-        )}
+        {/* ── Body ── */}
+        <div className="max-w-3xl mx-auto px-4 py-6 space-y-5">
 
-        <form id="post-form" onSubmit={onSubmit}>
-          <div className="grid gap-5 lg:grid-cols-[1fr_260px]">
-            {/* 왼쪽: 본문 영역 */}
-            <div className="space-y-4">
-              <Field label="제목 *">
-                <input
-                  value={values.title}
-                  onChange={(e) => onTitleChange(e.target.value)}
-                  className={inputCls + " text-base font-medium"}
-                  placeholder="글 제목을 입력하세요"
-                  required
-                />
-              </Field>
+          {error && (
+            <div className="rounded-lg bg-red-50 text-red-600 px-4 py-3 text-sm border border-red-100">{error}</div>
+          )}
 
-              <Field label="슬러그 (URL) *">
-                <input
-                  value={values.slug}
-                  onChange={(e) => { setSlugTouched(true); set("slug", slugify(e.target.value)) }}
-                  className={inputCls + " font-mono text-xs"}
-                  placeholder="my-post-url"
-                  required
-                />
-              </Field>
-
-              <Field label="요약">
-                <textarea
-                  value={values.excerpt}
-                  onChange={(e) => set("excerpt", e.target.value)}
-                  className={inputCls + " min-h-[70px] resize-none"}
-                  placeholder="목록에 표시될 짧은 설명 (1~2줄)"
-                />
-              </Field>
-
-              <Field label="본문 (Markdown)">
-                <textarea
-                  value={values.content}
-                  onChange={(e) => set("content", e.target.value)}
-                  className={inputCls + " min-h-[460px] font-mono text-xs leading-relaxed resize-y"}
-                  placeholder={"# 제목\n\n본문을 마크다운으로 작성하세요...\n\n## 소제목\n\n내용..."}
-                />
-              </Field>
+          {/* 대표이미지 */}
+          <div>
+            <label className="block text-xs font-semibold text-[#4361ee] mb-1.5">대표이미지</label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={values.thumbnail}
+                onChange={e => set("thumbnail", e.target.value)}
+                className={inputCls}
+                placeholder="대표이미지 URL 또는 업로드로 자동 입력"
+              />
+              <input ref={thumbFileRef} type="file" accept="image/*" className="hidden" onChange={onThumbFileChange} />
+              <button type="button"
+                onClick={() => thumbFileRef.current?.click()}
+                disabled={thumbUploading}
+                className="shrink-0 inline-flex items-center gap-1.5 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg border border-gray-200 transition-colors disabled:opacity-60">
+                {thumbUploading
+                  ? <><Loader2 className="h-3.5 w-3.5 animate-spin" />{thumbProgress}%</>
+                  : <><Upload className="h-3.5 w-3.5" />업로드</>
+                }
+              </button>
             </div>
+            {values.thumbnail && (
+              <img src={values.thumbnail} alt="썸네일 미리보기"
+                className="mt-2 h-32 w-full object-cover rounded-lg border border-gray-100" />
+            )}
+          </div>
 
-            {/* 오른쪽: 설정 영역 */}
-            <div className="space-y-4">
-              {/* 발행 상태 */}
-              <div className="rounded-lg border border-gray-200 p-4 bg-gray-50">
-                <p className="text-xs font-semibold text-gray-600 mb-2">발행 상태</p>
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <div className="relative">
-                    <input
-                      type="checkbox"
-                      className="sr-only"
-                      checked={values.published}
-                      onChange={(e) => set("published", e.target.checked)}
-                    />
-                    <div className={`w-10 h-5 rounded-full transition-colors ${values.published ? "bg-[#4361ee]" : "bg-gray-300"}`} />
-                    <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${values.published ? "translate-x-5" : ""}`} />
-                  </div>
-                  <span className="text-sm font-medium text-gray-700">
-                    {values.published ? "발행됨" : "초안"}
-                  </span>
-                </label>
-              </div>
+          {/* 제목 */}
+          <div>
+            <label className="block text-xs font-semibold text-[#4361ee] mb-1.5">제목 *</label>
+            <input
+              value={values.title}
+              onChange={e => onTitleChange(e.target.value)}
+              className={`${inputCls} text-base font-medium`}
+              placeholder="제목을 입력하세요"
+              required
+            />
+          </div>
 
-              <Field label="날짜">
-                <input
-                  type="date"
-                  value={values.date}
-                  onChange={(e) => set("date", e.target.value)}
-                  className={inputCls}
-                />
-              </Field>
+          {/* 태그 */}
+          <div>
+            <label className="block text-xs font-semibold text-[#4361ee] mb-1.5">태그</label>
+            <input
+              value={values.tags}
+              onChange={e => set("tags", e.target.value)}
+              className={inputCls}
+              placeholder="쉼표로 구분 (예: AI, 웹, 마케팅)"
+            />
+            <p className="mt-1 text-[11px] text-gray-400">검색 게시글 상세에 표시됩니다. 최대 20개, 태그당 40자.</p>
+          </div>
 
-              <Field label="카테고리">
+          {/* 카테고리 + 게시글 유형 */}
+          <div className="flex gap-4">
+            <div className="flex-1">
+              <label className="block text-xs font-semibold text-[#4361ee] mb-1.5">카테고리 *</label>
+              <div className="relative">
                 <select
                   value={values.category}
-                  onChange={(e) => set("category", e.target.value)}
-                  className={inputCls}
-                >
-                  {DEFAULT_CATEGORIES.map((c) => (
-                    <option key={c}>{c}</option>
-                  ))}
+                  onChange={e => set("category", e.target.value)}
+                  className={`${inputCls} pr-8 appearance-none`}>
+                  {categories.length === 0
+                    ? <option value="">불러오는 중...</option>
+                    : categories.map(c => <option key={c} value={c}>{c}</option>)
+                  }
                 </select>
-              </Field>
-
-              <Field label="태그 (쉼표 구분)">
-                <input
-                  value={values.tags}
-                  onChange={(e) => set("tags", e.target.value)}
-                  className={inputCls}
-                  placeholder="ai, nextjs, 튜토리얼"
-                />
-              </Field>
-
-              <Field label="썸네일 URL">
-                <input
-                  value={values.thumbnail}
-                  onChange={(e) => set("thumbnail", e.target.value)}
-                  className={inputCls}
-                  placeholder="https://..."
-                />
-                {values.thumbnail && (
-                  <img src={values.thumbnail} alt="썸네일 미리보기" className="mt-2 w-full h-28 object-cover rounded-md border" />
-                )}
-              </Field>
+                <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs">▾</span>
+              </div>
+            </div>
+            <div className="flex-1">
+              <label className="block text-xs font-semibold text-[#4361ee] mb-1.5">게시글 유형</label>
+              <div className="relative">
+                <select
+                  value={values.published ? "public" : "private"}
+                  onChange={e => set("published", e.target.value === "public")}
+                  className={`${inputCls} pr-8 appearance-none`}>
+                  <option value="public">일반글</option>
+                  <option value="private">비밀글</option>
+                </select>
+                <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs">▾</span>
+              </div>
             </div>
           </div>
-        </form>
-      </div>
+
+          {/* 내용 */}
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs font-semibold text-[#4361ee]">내용</span>
+                <span className="text-[11px] text-gray-400">이미지·표·링크 등. 이미지는 Storage에 자동 업로드됩니다.</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setHtmlMode(h => !h)}
+                className={`shrink-0 text-[11px] px-2.5 py-1 rounded border transition-colors ${htmlMode
+                  ? "bg-[#4361ee] text-white border-[#4361ee]"
+                  : "text-gray-500 border-gray-200 hover:border-[#4361ee] hover:text-[#4361ee]"}`}>
+                HTML 직접 입력
+              </button>
+            </div>
+
+            <div className="border border-gray-200 rounded-lg overflow-hidden bg-white">
+              {htmlMode ? (
+                <textarea
+                  value={values.content}
+                  onChange={e => set("content", e.target.value)}
+                  className="w-full p-4 text-sm font-mono text-gray-700 focus:outline-none resize-none"
+                  style={{ minHeight: 520 }}
+                  placeholder="HTML을 직접 입력하세요..."
+                />
+              ) : (
+                <RichEditor
+                  content={values.content}
+                  onChange={html => set("content", html)}
+                />
+              )}
+
+              {/* Bottom mode bar */}
+              <div className="border-t border-gray-100 px-4 py-2 flex justify-end gap-1 bg-gray-50">
+                <button
+                  type="button"
+                  onClick={() => setHtmlMode(false)}
+                  className={`px-3 py-1 text-xs rounded transition-colors ${!htmlMode
+                    ? "bg-[#4361ee] text-white"
+                    : "text-gray-400 hover:text-gray-600"}`}>
+                  WYSIWYG
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setHtmlMode(true)}
+                  className={`px-3 py-1 text-xs rounded transition-colors ${htmlMode
+                    ? "bg-[#4361ee] text-white"
+                    : "text-gray-400 hover:text-gray-600"}`}>
+                  Markdown
+                </button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </form>
     </div>
   )
 }
