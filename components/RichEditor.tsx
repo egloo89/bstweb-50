@@ -12,14 +12,6 @@ import { Table, TableRow, TableHeader, TableCell } from "@tiptap/extension-table
 import Placeholder from "@tiptap/extension-placeholder"
 import { Node, mergeAttributes } from "@tiptap/core"
 import { useState, useEffect, useRef, useCallback } from "react"
-// firebase loaded lazily to avoid SSR issues
-let _fbStorage: import("firebase/storage").FirebaseStorage | null = null
-async function getFbStorage() {
-  if (_fbStorage) return _fbStorage
-  const { storage } = await import("@/lib/firebase")
-  _fbStorage = storage
-  return storage
-}
 import {
   Bold, Italic, Underline as UnderlineIcon, Strikethrough,
   AlignLeft, AlignCenter, AlignRight, List, ListOrdered,
@@ -27,12 +19,11 @@ import {
   ChevronDown, X, Table as TableIcon, Undo, Redo, Type, Upload, Loader2,
 } from "lucide-react"
 
-/* ── Custom iframe node (지도 등) ─────────────────────────────────── */
+/* ── Custom iframe node ─────────────────────────────────────────── */
 const IFrameNode = Node.create({
   name: "iframe",
   group: "block",
   atom: true,
-  draggable: true,
   addAttributes() {
     return {
       src: { default: null },
@@ -50,7 +41,16 @@ const IFrameNode = Node.create({
   },
 })
 
-/* ── Small UI helpers ─────────────────────────────────────────────── */
+/* ── Firebase lazy loader ───────────────────────────────────────── */
+let _fbStorage: unknown = null
+async function getFbStorage() {
+  if (_fbStorage) return _fbStorage as import("firebase/storage").FirebaseStorage
+  const { storage } = await import("@/lib/firebase")
+  _fbStorage = storage
+  return storage
+}
+
+/* ── UI helpers ─────────────────────────────────────────────────── */
 function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
@@ -85,22 +85,21 @@ function Sep() { return <div className="w-px h-5 bg-gray-200 mx-0.5" /> }
 const inputCls = "w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#4361ee]/30"
 const modalBtn = "px-4 py-1.5 text-sm rounded-md transition-colors"
 
-/* ── Main component ───────────────────────────────────────────────── */
+/* ── Main component ─────────────────────────────────────────────── */
 interface RichEditorProps { content: string; onChange: (html: string) => void }
 
 export function RichEditor({ content, onChange }: RichEditorProps) {
+  // ── All hooks must be called unconditionally ──
   const [modal, setModal] = useState<"image" | "video" | "map" | "link" | "table" | null>(null)
   const [headingOpen, setHeadingOpen] = useState(false)
   const headingRef = useRef<HTMLDivElement>(null)
 
-  // image upload state
   const [imgUploading, setImgUploading] = useState(false)
   const [imgProgress, setImgProgress] = useState(0)
   const [imgError, setImgError] = useState<string | null>(null)
   const [imgPreview, setImgPreview] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // modal field state
   const [videoUrl, setVideoUrl] = useState("")
   const [mapSrc, setMapSrc] = useState("")
   const [mapHeight, setMapHeight] = useState("400")
@@ -109,10 +108,9 @@ export function RichEditor({ content, onChange }: RichEditorProps) {
   const [tableRows, setTableRows] = useState("3")
   const [tableCols, setTableCols] = useState("3")
 
-  // close heading dropdown on outside click
   useEffect(() => {
     function handler(e: MouseEvent) {
-      if (headingRef.current && !headingRef.current.contains(e.target as Node)) setHeadingOpen(false)
+      if (headingRef.current && !headingRef.current.contains(e.target as globalThis.Node)) setHeadingOpen(false)
     }
     document.addEventListener("mousedown", handler)
     return () => document.removeEventListener("mousedown", handler)
@@ -120,15 +118,13 @@ export function RichEditor({ content, onChange }: RichEditorProps) {
 
   const editor = useEditor({
     extensions: [
-      // StarterKit v3 already includes: Bold, Italic, Strike, Underline, Link,
-      // Heading, BulletList, OrderedList, Code, CodeBlock, Blockquote, HorizontalRule, etc.
-      // Disable built-in Link so we can add a custom-configured one
+      // StarterKit v3 includes: Bold, Italic, Strike, Underline, Link, Heading,
+      // BulletList, OrderedList, Code, CodeBlock, Blockquote, HorizontalRule, etc.
       StarterKit.configure({ heading: { levels: [1, 2, 3, 4] }, link: false }),
       ImageExt.configure({ allowBase64: true }),
       LinkExt.configure({ openOnClick: false, HTMLAttributes: { class: "text-[#4361ee] underline", target: "_blank" } }),
       Youtube.configure({ width: 640, height: 400 }),
       TextAlign.configure({ types: ["heading", "paragraph"] }),
-      // Underline is already in StarterKit — do NOT add again
       Color,
       TextStyle,
       Table.configure({ resizable: false }),
@@ -143,31 +139,26 @@ export function RichEditor({ content, onChange }: RichEditorProps) {
     editorProps: { attributes: { class: "rich-editor-body outline-none min-h-[520px] p-5 prose-content" } },
   })
 
-  if (!editor) return null
-
-  /* image upload to Firebase */
+  // ── uploadFile must be before any early return ──
   const uploadFile = useCallback(async (file: File) => {
+    if (!editor) return
     if (!file.type.startsWith("image/")) { setImgError("이미지 파일만 업로드할 수 있습니다."); return }
     setImgError(null)
     setImgUploading(true)
     setImgProgress(0)
     setImgPreview(URL.createObjectURL(file))
-
     try {
       const { ref, uploadBytesResumable, getDownloadURL } = await import("firebase/storage")
       const storage = await getFbStorage()
       const path = `blog-images/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`
       const task = uploadBytesResumable(ref(storage, path), file)
-
       task.on("state_changed",
         snap => setImgProgress(Math.round(snap.bytesTransferred / snap.totalBytes * 100)),
         err => { setImgError("업로드 실패: " + err.message); setImgUploading(false) },
         async () => {
           const url = await getDownloadURL(task.snapshot.ref)
           editor.chain().focus().setImage({ src: url }).run()
-          setImgUploading(false)
-          setImgPreview(null)
-          setModal(null)
+          setImgUploading(false); setImgPreview(null); setModal(null)
         }
       )
     } catch (err: unknown) {
@@ -176,12 +167,18 @@ export function RichEditor({ content, onChange }: RichEditorProps) {
     }
   }, [editor])
 
+  // ── Early return AFTER all hooks ──
+  if (!editor) return (
+    <div className="border border-gray-200 rounded-lg bg-white flex items-center justify-center" style={{ minHeight: 560 }}>
+      <span className="text-gray-400 text-sm">에디터 초기화 중...</span>
+    </div>
+  )
+
   function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (file) uploadFile(file)
     e.target.value = ""
   }
-
   function onDrop(e: React.DragEvent) {
     e.preventDefault()
     const file = e.dataTransfer.files?.[0]
@@ -216,7 +213,6 @@ export function RichEditor({ content, onChange }: RichEditorProps) {
     setModal(null)
   }
 
-  /* heading label */
   const headingLevels: Array<{ label: string; level?: 1|2|3|4 }> = [
     { label: "본문" },
     { label: "제목 1", level: 1 },
@@ -233,7 +229,6 @@ export function RichEditor({ content, onChange }: RichEditorProps) {
       {/* ── Toolbar ── */}
       <div className="border-b border-gray-200 bg-gray-50 px-2 py-1.5 flex flex-wrap gap-0.5 items-center">
 
-        {/* Undo / Redo */}
         <ToolBtn onClick={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo()} title="되돌리기">
           <Undo className="h-3.5 w-3.5" />
         </ToolBtn>
@@ -274,14 +269,13 @@ export function RichEditor({ content, onChange }: RichEditorProps) {
 
         <Sep />
 
-        {/* Bold / Italic / Underline / Strike */}
-        <ToolBtn onClick={() => editor.chain().focus().toggleBold().run()} active={editor.isActive("bold")} title="굵게 (Ctrl+B)">
+        <ToolBtn onClick={() => editor.chain().focus().toggleBold().run()} active={editor.isActive("bold")} title="굵게">
           <Bold className="h-3.5 w-3.5" />
         </ToolBtn>
-        <ToolBtn onClick={() => editor.chain().focus().toggleItalic().run()} active={editor.isActive("italic")} title="기울임 (Ctrl+I)">
+        <ToolBtn onClick={() => editor.chain().focus().toggleItalic().run()} active={editor.isActive("italic")} title="기울임">
           <Italic className="h-3.5 w-3.5" />
         </ToolBtn>
-        <ToolBtn onClick={() => editor.chain().focus().toggleUnderline().run()} active={editor.isActive("underline")} title="밑줄 (Ctrl+U)">
+        <ToolBtn onClick={() => editor.chain().focus().toggleUnderline().run()} active={editor.isActive("underline")} title="밑줄">
           <UnderlineIcon className="h-3.5 w-3.5" />
         </ToolBtn>
         <ToolBtn onClick={() => editor.chain().focus().toggleStrike().run()} active={editor.isActive("strike")} title="취소선">
@@ -299,7 +293,6 @@ export function RichEditor({ content, onChange }: RichEditorProps) {
 
         <Sep />
 
-        {/* Alignment */}
         <ToolBtn onClick={() => editor.chain().focus().setTextAlign("left").run()} active={editor.isActive({ textAlign: "left" })} title="왼쪽 정렬">
           <AlignLeft className="h-3.5 w-3.5" />
         </ToolBtn>
@@ -312,7 +305,6 @@ export function RichEditor({ content, onChange }: RichEditorProps) {
 
         <Sep />
 
-        {/* Lists / Quote / Code / HR */}
         <ToolBtn onClick={() => editor.chain().focus().toggleBulletList().run()} active={editor.isActive("bulletList")} title="글머리 기호">
           <List className="h-3.5 w-3.5" />
         </ToolBtn>
@@ -334,7 +326,6 @@ export function RichEditor({ content, onChange }: RichEditorProps) {
 
         <Sep />
 
-        {/* Insert buttons */}
         {[
           { icon: <ImageIcon className="h-3.5 w-3.5" />, label: "이미지", id: "image" as const },
           { icon: <Video className="h-3.5 w-3.5" />, label: "동영상", id: "video" as const },
@@ -362,18 +353,14 @@ export function RichEditor({ content, onChange }: RichEditorProps) {
       {modal === "image" && (
         <Modal title="이미지 업로드" onClose={() => { if (!imgUploading) { setModal(null); setImgPreview(null); setImgError(null) } }}>
           <div className="space-y-3">
-            {/* 숨김 파일 input */}
             <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={onFileChange} />
-
-            {/* 드래그앤드롭 영역 */}
             <div
               onDragOver={e => e.preventDefault()}
               onDrop={onDrop}
               onClick={() => !imgUploading && fileInputRef.current?.click()}
               className={`border-2 border-dashed rounded-lg flex flex-col items-center justify-center gap-2 cursor-pointer transition-colors
                 ${imgUploading ? "border-[#4361ee]/40 bg-blue-50 cursor-default" : "border-gray-200 hover:border-[#4361ee]/50 hover:bg-gray-50"}`}
-              style={{ minHeight: 140 }}
-            >
+              style={{ minHeight: 140 }}>
               {imgUploading ? (
                 <>
                   {imgPreview && <img src={imgPreview} alt="" className="h-20 w-auto rounded object-cover" />}
@@ -395,13 +382,10 @@ export function RichEditor({ content, onChange }: RichEditorProps) {
                 </>
               )}
             </div>
-
             {imgError && <p className="text-xs text-red-500">{imgError}</p>}
-
             <div className="flex justify-end">
               <button type="button" onClick={() => { setModal(null); setImgPreview(null); setImgError(null) }}
-                disabled={imgUploading}
-                className={`${modalBtn} text-gray-600 hover:bg-gray-100 disabled:opacity-50`}>
+                disabled={imgUploading} className={`${modalBtn} text-gray-600 hover:bg-gray-100 disabled:opacity-50`}>
                 취소
               </button>
             </div>
@@ -477,13 +461,11 @@ export function RichEditor({ content, onChange }: RichEditorProps) {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">행 수</label>
-                <input type="number" min="2" max="20" value={tableRows} onChange={e => setTableRows(e.target.value)}
-                  className={inputCls} />
+                <input type="number" min="2" max="20" value={tableRows} onChange={e => setTableRows(e.target.value)} className={inputCls} />
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">열 수</label>
-                <input type="number" min="2" max="10" value={tableCols} onChange={e => setTableCols(e.target.value)}
-                  className={inputCls} />
+                <input type="number" min="2" max="10" value={tableCols} onChange={e => setTableCols(e.target.value)} className={inputCls} />
               </div>
             </div>
             <div className="flex justify-end gap-2 pt-1">
