@@ -51,6 +51,12 @@ const ResizableImageView = ({ node, updateAttributes, selected }: { node: any; u
     document.body.style.cursor = dir + "-resize"
     document.body.style.userSelect = "none"
 
+    // 리사이즈 드래그 중 마우스 휠로 페이지 스크롤
+    function onWheel(ev: WheelEvent) {
+      window.scrollBy({ top: ev.deltaY, behavior: "instant" as ScrollBehavior })
+    }
+    document.addEventListener("wheel", onWheel, { passive: true })
+
     function onMove(ev: MouseEvent) {
       const { x, y, w, aspect } = startRef.current
       const dx = ev.clientX - x
@@ -63,11 +69,12 @@ const ResizableImageView = ({ node, updateAttributes, selected }: { node: any; u
       nw = Math.max(60, Math.round(nw))
       if (img) img.style.width = nw + "px"
     }
-    function onUp(ev: MouseEvent) {
+    function onUp() {
       document.body.style.cursor = ""
       document.body.style.userSelect = ""
       document.removeEventListener("mousemove", onMove)
       document.removeEventListener("mouseup", onUp)
+      document.removeEventListener("wheel", onWheel)
       const finalW = parseInt(img?.style.width || "0") || startRef.current.w
       if (img) img.style.width = ""
       updateAttributes({ width: finalW })
@@ -360,6 +367,33 @@ export function RichEditor({ content, onChange }: RichEditorProps) {
 
   // ref 동기화
   uploadFilesRef.current = uploadFiles
+
+  // 드래그 중 마우스 휠로 스크롤 가능하게
+  useEffect(() => {
+    if (!editor) return
+    const editorEl = editor.view.dom
+    let isDragging = false
+    function onWheel(ev: WheelEvent) {
+      if (isDragging) window.scrollBy({ top: ev.deltaY, behavior: "instant" as ScrollBehavior })
+    }
+    function onDragStart() {
+      isDragging = true
+      document.addEventListener("wheel", onWheel, { passive: true })
+    }
+    function onDragEnd() {
+      isDragging = false
+      document.removeEventListener("wheel", onWheel)
+    }
+    editorEl.addEventListener("dragstart", onDragStart)
+    document.addEventListener("dragend", onDragEnd)
+    document.addEventListener("drop", onDragEnd)
+    return () => {
+      editorEl.removeEventListener("dragstart", onDragStart)
+      document.removeEventListener("dragend", onDragEnd)
+      document.removeEventListener("drop", onDragEnd)
+      document.removeEventListener("wheel", onWheel)
+    }
+  }, [editor])
 
   if (!editor) return (
     <div className="border border-gray-200 rounded-lg bg-white flex items-center justify-center" style={{ minHeight: 560 }}>
