@@ -42,8 +42,12 @@ const KV_POST = (slug: string) => `bstweb_post:${slug}`
 async function getRedis() {
   try {
     const { Redis } = await import("@upstash/redis")
+    const url = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL
+    const token = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN
+    if (url && token) return new Redis({ url, token })
     return Redis.fromEnv()
-  } catch {
+  } catch (e) {
+    console.error("[posts] getRedis failed:", e)
     return null
   }
 }
@@ -67,8 +71,13 @@ async function kvGetDeleted(r: Awaited<ReturnType<typeof getRedis>>): Promise<Se
 async function kvGetPost(r: Awaited<ReturnType<typeof getRedis>>, slug: string): Promise<Post | null> {
   if (!r) return null
   try {
-    return await r.get<Post>(KV_POST(slug))
-  } catch { return null }
+    const result = await r.get<Post>(KV_POST(slug))
+    if (!result) console.error(`[posts] kvGetPost: key "${KV_POST(slug)}" returned null`)
+    return result
+  } catch (e) {
+    console.error(`[posts] kvGetPost error for slug "${slug}":`, e)
+    return null
+  }
 }
 
 // ── MDX helpers (read-only) ────────────────────────────────────────────────

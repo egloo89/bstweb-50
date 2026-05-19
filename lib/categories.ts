@@ -20,10 +20,23 @@ const KV_KEY = "bstweb_categories"
 
 // ── KV helpers ──────────────────────────────────────────────────────────────
 
-async function kvGet(): Promise<CategoryData | null> {
+async function getRedis() {
   try {
     const { Redis } = await import("@upstash/redis")
-    const redis = Redis.fromEnv()
+    const url = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL
+    const token = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN
+    if (url && token) return new Redis({ url, token })
+    return Redis.fromEnv()
+  } catch (e) {
+    console.error("[categories] getRedis failed:", e)
+    return null
+  }
+}
+
+async function kvGet(): Promise<CategoryData | null> {
+  try {
+    const redis = await getRedis()
+    if (!redis) return null
     const data = await redis.get<CategoryData>(KV_KEY)
     if (data && Array.isArray(data.list)) return data
   } catch {}
@@ -32,8 +45,8 @@ async function kvGet(): Promise<CategoryData | null> {
 
 async function kvSet(data: CategoryData): Promise<void> {
   try {
-    const { Redis } = await import("@upstash/redis")
-    const redis = Redis.fromEnv()
+    const redis = await getRedis()
+    if (!redis) return
     await redis.set(KV_KEY, data)
   } catch {}
 }
