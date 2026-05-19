@@ -115,7 +115,7 @@ export function AdminPostTable({ posts, selectedCategory }: Props) {
                   <td className="pl-5 pr-2 py-3 text-xs text-gray-400 align-middle">{posts.length - i}</td>
 
                   {/* 제목 */}
-                  <td className="py-3 pr-3 align-middle">
+                  <td className="py-3 pr-3 align-middle max-w-0 w-full">
                     <div className="flex items-center gap-2 min-w-0">
                       <span className={`shrink-0 text-[10px] px-1.5 py-0.5 rounded font-medium ${colorClass}`}>
                         {post.category}

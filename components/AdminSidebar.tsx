@@ -28,6 +28,13 @@ export function AdminSidebar({ categories: initialCategories, allCount, selected
   const [counts, setCounts] = useState<Record<string, number>>(
     Object.fromEntries(initialCategories.map((c) => [c.name, c.count]))
   )
+
+  useEffect(() => {
+    if (!editMode) {
+      setCats(initialCategories.map((c) => c.name))
+      setCounts(Object.fromEntries(initialCategories.map((c) => [c.name, c.count])))
+    }
+  }, [initialCategories])
   const [newName, setNewName] = useState("")
   const [renamingIdx, setRenamingIdx] = useState<number | null>(null)
   const [renameVal, setRenameVal] = useState("")
