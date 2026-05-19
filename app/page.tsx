@@ -12,7 +12,7 @@ const PAGE_SIZE = 15
 
 export default async function HomePage({ searchParams }: { searchParams: { page?: string } }) {
   const allPosts = await getAllPosts()
-  const categories = await getCategories()
+  const categories = await getCategories(false, allPosts)
   const page = Math.max(1, parseInt(searchParams.page || "1", 10) || 1)
   const totalPages = Math.max(1, Math.ceil(allPosts.length / PAGE_SIZE))
   const current = Math.min(page, totalPages)

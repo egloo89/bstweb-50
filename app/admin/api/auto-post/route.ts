@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { revalidatePath } from "next/cache"
 import { isAuthenticated } from "@/lib/auth"
 import { createPost } from "@/lib/posts"
+import { readCategoryList } from "@/lib/categories"
 import { slugify } from "@/lib/utils"
 import { GoogleGenerativeAI } from "@google/generative-ai"
 
@@ -46,6 +47,21 @@ const POST_SPECS: PostSpec[] = [
     imageSeed: `finance-${Date.now()}`,
   },
 ]
+
+function resolveCategory(specCategory: string, list: string[]): string {
+  // 1. exact match
+  if (list.includes(specCategory)) return specCategory
+  // 2. case-insensitive
+  const lower = specCategory.toLowerCase()
+  const found = list.find(c => c.toLowerCase() === lower)
+  if (found) return found
+  // 3. list의 첫 번째 항목 중 specCategory와 다른 것 (AI 외의 카테고리)
+  if (specCategory !== "AI") {
+    const nonAi = list.find(c => c.toLowerCase() !== "ai")
+    if (nonAi) return nonAi
+  }
+  return specCategory
+}
 
 async function generatePost(spec: PostSpec) {
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
@@ -108,10 +124,13 @@ export async function POST() {
     )
   }
 
+  const categoryList = await readCategoryList()
+  const specs = POST_SPECS.map(s => ({ ...s, category: resolveCategory(s.category, categoryList) }))
+
   const results: Array<{ category: string; title: string; slug: string }> = []
   const errors: Array<{ category: string; error: string }> = []
 
-  for (const spec of POST_SPECS) {
+  for (const spec of specs) {
     try {
       const [generated, thumbnail] = await Promise.all([
         generatePost(spec),

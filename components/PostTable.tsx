@@ -64,7 +64,7 @@ export function PostTable({ posts, allCount, label = "전체글보기", currentP
                     {num}
                   </td>
                   {/* 제목 */}
-                  <td className="pl-4 sm:pl-0 py-3 md:py-4 pr-3 align-middle">
+                  <td className="pl-4 sm:pl-0 py-3 md:py-4 pr-3 align-middle max-w-0 w-full">
                     <div className="flex items-center gap-2 min-w-0">
                       <span className={`shrink-0 text-[10px] md:text-xs px-1.5 py-0.5 rounded font-medium ${colorClass}`}>
                         {post.category}
