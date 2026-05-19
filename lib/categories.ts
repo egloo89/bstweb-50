@@ -144,10 +144,11 @@ export async function getCategories(includeUnpublished = false, existingPosts?: 
   }))
 }
 
-export async function getPostsByCategory(category: string, includeUnpublished = false) {
+export async function getPostsByCategory(category: string, includeUnpublished = false, existingPosts?: Post[]) {
   const { aliases } = await readData()
   const aliasList = aliases[category] ?? []
-  return (await getAllPosts(includeUnpublished)).filter(
+  const posts = existingPosts ?? await getAllPosts(includeUnpublished)
+  return posts.filter(
     (p) => p.category === category || aliasList.includes(p.category)
   )
 }
