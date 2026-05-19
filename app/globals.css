@@ -149,4 +149,46 @@
   .prose-content [style*="text-align: center"] { text-align: center; }
   .prose-content [style*="text-align: right"]  { text-align: right; }
   .prose-content [style*="text-align: left"]   { text-align: left; }
+
+  /* ── 모바일 반응형 ─────────────────────────────────── */
+  @media (max-width: 640px) {
+    .prose-content {
+      font-size: 15px;
+      line-height: 1.85;
+    }
+    .prose-content h1 { font-size: 1.5rem; }
+    .prose-content h2 { font-size: 1.25rem; }
+    .prose-content h3 { font-size: 1.1rem; }
+
+    /* 테이블 가로 스크롤 */
+    .prose-content table {
+      display: block;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    /* 코드 블록 가로 스크롤 */
+    .prose-content pre { font-size: 0.8rem; }
+
+    /* 이미지 오버플로 방지 */
+    .prose-content img { max-width: 100%; height: auto; }
+  }
+
+  /* YouTube 반응형 */
+  .prose-content [data-youtube-video] {
+    position: relative;
+    width: 100%;
+    padding-bottom: 56.25%;
+    height: 0;
+    overflow: hidden;
+    border-radius: 0.5rem;
+    margin: 1rem 0;
+  }
+  .prose-content [data-youtube-video] iframe {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    border: none;
+    border-radius: 0.5rem;
+  }
 }

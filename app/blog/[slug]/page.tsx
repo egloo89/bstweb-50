@@ -75,16 +75,16 @@ export default async function PostPage({ params }: { params: { slug: string } })
         <div className="hidden md:block">
           <CategorySidebar categories={categories} totalCount={allPosts.length} selectedCategory={post.category} />
         </div>
-        <main className="flex-1 min-w-0 px-8 py-7">
-          <Link href="/blog" className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-[#4361ee] mb-5 transition-colors">
+        <main className="flex-1 min-w-0 px-4 md:px-8 py-5 md:py-7">
+          <Link href="/blog" className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-[#4361ee] mb-4 md:mb-5 transition-colors">
             <ArrowLeft className="h-3.5 w-3.5" /> 목록으로
           </Link>
 
-          <header className="pb-5 border-b border-gray-100 mb-6">
-            <span className={`inline-block text-[11px] px-2 py-0.5 rounded font-medium mb-3 ${colorClass}`}>
+          <header className="pb-4 md:pb-5 border-b border-gray-100 mb-5 md:mb-6">
+            <span className={`inline-block text-[11px] px-2 py-0.5 rounded font-medium mb-2.5 ${colorClass}`}>
               {post.category}
             </span>
-            <h1 className="text-2xl font-bold text-gray-900 leading-tight mb-3">{post.title}</h1>
+            <h1 className="text-xl md:text-2xl font-bold text-gray-900 leading-tight mb-3">{post.title}</h1>
             {post.excerpt && <p className="text-sm text-gray-500 mb-3">{post.excerpt}</p>}
             <div className="flex flex-wrap items-center gap-3 text-xs text-gray-400">
               <span className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5" />{formatDate(post.date)}</span>

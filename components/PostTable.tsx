@@ -60,11 +60,11 @@ export function PostTable({ posts, allCount, label = "전체글보기", currentP
                   className="border-b border-gray-50 hover:bg-[#f5f7ff] transition-colors"
                 >
                   {/* 번호 */}
-                  <td className="pl-5 md:pl-7 pr-2 py-3 md:py-4 text-gray-400 text-xs md:text-sm w-8 shrink-0 align-middle">
+                  <td className="hidden sm:table-cell pl-5 md:pl-7 pr-2 py-3 md:py-4 text-gray-400 text-xs md:text-sm w-8 shrink-0 align-middle">
                     {num}
                   </td>
                   {/* 제목 */}
-                  <td className="py-3 md:py-4 pr-3 align-middle">
+                  <td className="pl-4 sm:pl-0 py-3 md:py-4 pr-3 align-middle">
                     <div className="flex items-center gap-2 min-w-0">
                       <span className={`shrink-0 text-[10px] md:text-xs px-1.5 py-0.5 rounded font-medium ${colorClass}`}>
                         {post.category}
@@ -77,17 +77,17 @@ export function PostTable({ posts, allCount, label = "전체글보기", currentP
                       </Link>
                     </div>
                     {post.excerpt && (
-                      <p className="text-xs text-gray-400 mt-0.5 truncate pl-[calc(1.5rem+8px)]">
+                      <p className="hidden sm:block text-xs text-gray-400 mt-0.5 truncate pl-[calc(1.5rem+8px)]">
                         {post.excerpt}
                       </p>
                     )}
                   </td>
                   {/* 날짜 */}
-                  <td className="py-3 md:py-4 pr-3 text-gray-400 text-xs md:text-sm whitespace-nowrap w-24 text-right align-middle">
+                  <td className="py-3 md:py-4 pr-3 text-gray-400 text-xs whitespace-nowrap w-20 text-right align-middle">
                     {formatDate(post.date)}
                   </td>
-                  {/* 조회수 */}
-                  <td className="py-3 md:py-4 pr-5 md:pr-7 text-gray-400 text-xs md:text-sm w-10 text-right align-middle">
+                  {/* 조회수: 모바일에서 숨김 */}
+                  <td className="hidden sm:table-cell py-3 md:py-4 pr-5 md:pr-7 text-gray-400 text-xs md:text-sm w-10 text-right align-middle">
                     {post.views ?? 0}
                   </td>
                 </tr>

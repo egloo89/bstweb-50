@@ -1,5 +1,5 @@
 import { getAllPosts } from "@/lib/posts"
-import { getCategories } from "@/lib/categories"
+import { getCategories, getPostsByCategory } from "@/lib/categories"
 import { BlogHeader } from "@/components/BlogHeader"
 import { AdminSidebar } from "@/components/AdminSidebar"
 import { AdminPostTable } from "@/components/AdminPostTable"
@@ -15,8 +15,9 @@ export default async function AdminDashboard({
   const categories = await getCategories(true)
   const selectedCategory = searchParams.category
 
+  // alias(이름 변경 이력)까지 포함해서 해당 카테고리의 글을 가져옴
   const posts = selectedCategory
-    ? allPosts.filter((p) => p.category === selectedCategory)
+    ? await getPostsByCategory(selectedCategory, true)
     : allPosts
 
   return (
