@@ -9,8 +9,11 @@ export function BlogHeader() {
     <header className="border-b border-gray-200 bg-white">
       <div className="flex h-14 md:h-16 items-center justify-between px-5 md:px-7">
         <Link href="/" className="flex items-center gap-2.5">
-          <Image src="/blackbay-logo.svg" alt="Black Bay" width={36} height={36} className="shrink-0" />
-          <span className="text-base md:text-lg font-bold text-gray-800 tracking-tight">Black Bay</span>
+          <Image src="/blackbay-logo.svg" alt="Black Bay Blog" width={40} height={40} className="shrink-0 rounded-full" />
+          <span className="flex flex-col leading-tight">
+            <span className="text-base md:text-lg font-bold text-gray-900 tracking-tight">Black Bay Blog</span>
+            <span className="text-[10px] md:text-xs text-gray-400 font-medium tracking-wide">블랙베이 블로그</span>
+          </span>
         </Link>
 
         <Link

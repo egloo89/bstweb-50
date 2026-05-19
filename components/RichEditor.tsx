@@ -29,57 +29,142 @@ const FONTS = [
   { label: "나눔고딕코딩", value: "'Nanum Gothic Coding', monospace" },
 ]
 
-/* ── 이미지 NodeView — 선택 표시 + 드래그 핸들 ──────────────────── */
+/* ── 리사이즈 가능 이미지 NodeView ──────────────────────────────── */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const ImageNodeView = ({ node, selected }: { node: any; selected: boolean }) => (
-  <NodeViewWrapper
-    as={"span" as React.ElementType}
-    data-drag-handle
-    contentEditable={false}
-    style={{
-      display: "inline-block",
-      position: "relative",
-      cursor: selected ? "grab" : "default",
-      userSelect: "none",
-      verticalAlign: "bottom",
-    }}
-  >
-    <img
-      src={node.attrs.src}
-      alt={node.attrs.alt || ""}
-      draggable={false}
-      style={{
-        maxWidth: "100%",
-        display: "block",
-        borderRadius: 8,
-        margin: "8px 0",
-        outline: selected ? "2.5px solid #4361ee" : "2.5px solid transparent",
-        outlineOffset: 2,
-        transition: "outline 0.1s",
-      }}
-    />
-    {/* 선택 시 상단 뱃지 */}
-    {selected && (
-      <span style={{
-        position: "absolute", top: 14, left: "50%",
-        transform: "translateX(-50%)",
-        background: "#4361ee", color: "#fff",
-        fontSize: 11, padding: "3px 10px",
-        borderRadius: 4, whiteSpace: "nowrap",
-        pointerEvents: "none", display: "flex",
-        alignItems: "center", gap: 4,
-      }}>
-        <GripVertical size={11} />드래그하여 이동
-      </span>
-    )}
-  </NodeViewWrapper>
-)
+const ResizableImageView = ({ node, updateAttributes, selected }: { node: any; updateAttributes: (a: Record<string, unknown>) => void; selected: boolean }) => {
+  const imgRef = useRef<HTMLImageElement>(null)
+  const startRef = useRef({ x: 0, y: 0, w: 0, aspect: 1 })
 
-/* 드래그 가능 이미지 확장 */
+  const imgWidth: number | undefined = node.attrs.width ?? undefined
+
+  function startResize(e: React.MouseEvent<HTMLSpanElement>, dir: string) {
+    e.preventDefault()
+    e.stopPropagation()
+    const img = imgRef.current
+    if (!img) return
+    startRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+      w: img.offsetWidth,
+      aspect: img.naturalWidth > 0 ? img.naturalWidth / img.naturalHeight : img.offsetWidth / img.offsetHeight,
+    }
+    document.body.style.cursor = dir + "-resize"
+    document.body.style.userSelect = "none"
+
+    function onMove(ev: MouseEvent) {
+      const { x, y, w, aspect } = startRef.current
+      const dx = ev.clientX - x
+      const dy = ev.clientY - y
+      let nw = w
+      if (dir.includes("e")) nw = w + dx
+      else if (dir.includes("w")) nw = w - dx
+      else if (dir === "s") nw = w + dy * aspect
+      else if (dir === "n") nw = w - dy * aspect
+      nw = Math.max(60, Math.round(nw))
+      if (img) img.style.width = nw + "px"
+    }
+    function onUp(ev: MouseEvent) {
+      document.body.style.cursor = ""
+      document.body.style.userSelect = ""
+      document.removeEventListener("mousemove", onMove)
+      document.removeEventListener("mouseup", onUp)
+      const finalW = parseInt(img?.style.width || "0") || startRef.current.w
+      if (img) img.style.width = ""
+      updateAttributes({ width: finalW })
+    }
+    document.addEventListener("mousemove", onMove)
+    document.addEventListener("mouseup", onUp)
+  }
+
+  const hStyle = (cursor: string, pos: React.CSSProperties): React.CSSProperties => ({
+    position: "absolute", width: 10, height: 10,
+    background: "#4361ee", border: "2px solid #fff",
+    borderRadius: 2, cursor, zIndex: 20, ...pos,
+  })
+
+  return (
+    <NodeViewWrapper
+      as={"span" as React.ElementType}
+      data-drag-handle
+      contentEditable={false}
+      style={{
+        display: "inline-block", position: "relative",
+        cursor: selected ? "grab" : "default",
+        userSelect: "none", verticalAlign: "bottom",
+      }}
+    >
+      <img
+        ref={imgRef}
+        src={node.attrs.src}
+        alt={node.attrs.alt || ""}
+        draggable={false}
+        style={{
+          maxWidth: "100%", display: "block",
+          borderRadius: 8, margin: "8px 0",
+          width: imgWidth ? imgWidth + "px" : undefined,
+          outline: selected ? "2.5px solid #4361ee" : "2.5px solid transparent",
+          outlineOffset: 2, transition: "outline 0.1s",
+        }}
+      />
+      {selected && (
+        <>
+          {/* 드래그 이동 뱃지 */}
+          <span style={{
+            position: "absolute", top: 14, left: "50%",
+            transform: "translateX(-50%)",
+            background: "#4361ee", color: "#fff",
+            fontSize: 11, padding: "3px 10px", borderRadius: 4,
+            whiteSpace: "nowrap", pointerEvents: "none",
+            display: "flex", alignItems: "center", gap: 4,
+          }}>
+            <GripVertical size={11} />드래그하여 이동
+          </span>
+          {/* 크기 표시 */}
+          {imgWidth && (
+            <span style={{
+              position: "absolute", bottom: 14, right: 6,
+              background: "rgba(0,0,0,0.55)", color: "#fff",
+              fontSize: 10, padding: "1px 6px", borderRadius: 3,
+              pointerEvents: "none",
+            }}>
+              {imgWidth}px
+            </span>
+          )}
+          {/* 8방향 리사이즈 핸들 */}
+          <span style={hStyle("n-resize",  { top: -5,  left: "50%", marginLeft: -5 })} onMouseDown={e => startResize(e, "n")} />
+          <span style={hStyle("s-resize",  { bottom: -5, left: "50%", marginLeft: -5 })} onMouseDown={e => startResize(e, "s")} />
+          <span style={hStyle("w-resize",  { top: "50%", left: -5,  marginTop: -5 })}  onMouseDown={e => startResize(e, "w")} />
+          <span style={hStyle("e-resize",  { top: "50%", right: -5, marginTop: -5 })}  onMouseDown={e => startResize(e, "e")} />
+          <span style={hStyle("nw-resize", { top: -5,  left: -5  })}  onMouseDown={e => startResize(e, "nw")} />
+          <span style={hStyle("ne-resize", { top: -5,  right: -5 })}  onMouseDown={e => startResize(e, "ne")} />
+          <span style={hStyle("sw-resize", { bottom: -5, left: -5  })} onMouseDown={e => startResize(e, "sw")} />
+          <span style={hStyle("se-resize", { bottom: -5, right: -5 })} onMouseDown={e => startResize(e, "se")} />
+        </>
+      )}
+    </NodeViewWrapper>
+  )
+}
+
+/* 드래그 + 리사이즈 이미지 확장 */
 const DraggableImage = ImageExt.extend({
   draggable: true,
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      width: {
+        default: null,
+        parseHTML: el => {
+          const w = el.getAttribute("width") || el.style.width
+          return w ? parseInt(w) || null : null
+        },
+        renderHTML: attrs => attrs.width
+          ? { width: attrs.width, style: `width:${attrs.width}px;max-width:100%` }
+          : {},
+      },
+    }
+  },
   addNodeView() {
-    return ReactNodeViewRenderer(ImageNodeView)
+    return ReactNodeViewRenderer(ResizableImageView)
   },
 })
 

@@ -1,16 +1,24 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
-  <!-- Background circle -->
-  <circle cx="100" cy="100" r="100" fill="#0a0a0a"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <!-- 검정 원 배경 -->
+  <circle cx="100" cy="100" r="100" fill="#0f0f0f"/>
 
-  <!-- Letter B -->
-  <text x="100" y="118" font-family="Georgia, serif" font-size="110" font-weight="bold" fill="white" text-anchor="middle" dominant-baseline="middle">B</text>
+  <!-- B 글자 (흰색, evenodd로 내부 구멍 표현) -->
+  <path fill-rule="evenodd" clip-rule="evenodd" fill="white"
+    d="M40 28 L40 172 L108 172
+       Q152 172 152 144 Q152 122 132 116
+       Q152 110 152 82 Q152 28 108 28 Z
+       M62 50 L104 50 Q128 50 128 76
+       Q128 102 104 102 L62 102 Z
+       M62 122 L108 122 Q134 122 134 146
+       Q134 168 108 168 L62 168 Z"/>
 
-  <!-- Wave overlay at bottom -->
-  <clipPath id="bottomClip">
-    <rect x="0" y="130" width="200" height="70"/>
-  </clipPath>
-  <g clip-path="url(#bottomClip)">
-    <path d="M0 145 Q25 135 50 145 Q75 155 100 145 Q125 135 150 145 Q175 155 200 145 L200 200 L0 200 Z" fill="#1a6bb5" opacity="0.85"/>
-    <path d="M0 158 Q25 148 50 158 Q75 168 100 158 Q125 148 150 158 Q175 168 200 158 L200 200 L0 200 Z" fill="#1a6bb5" opacity="0.6"/>
-  </g>
+  <!-- 파도 (흰색, B 하단을 가로지름) -->
+  <path d="M18 134 Q42 120 68 134 Q94 148 120 134 Q144 122 168 134"
+        stroke="white" stroke-width="8" fill="none"
+        stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- 파도 두 번째 줄 (반투명) -->
+  <path d="M18 150 Q42 136 68 150 Q94 164 120 150 Q144 138 168 150"
+        stroke="white" stroke-width="5" fill="none" opacity="0.35"
+        stroke-linecap="round" stroke-linejoin="round"/>
 </svg>
