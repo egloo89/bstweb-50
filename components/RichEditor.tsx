@@ -1,6 +1,6 @@
 "use client"
 
-import { useEditor, EditorContent } from "@tiptap/react"
+import { useEditor, EditorContent, ReactNodeViewRenderer, NodeViewWrapper } from "@tiptap/react"
 import StarterKit from "@tiptap/starter-kit"
 import ImageExt from "@tiptap/extension-image"
 import LinkExt from "@tiptap/extension-link"
@@ -16,10 +16,10 @@ import {
   AlignLeft, AlignCenter, AlignRight, List, ListOrdered,
   Quote, Code, Minus, ImageIcon, Video, Map, Link as LinkIcon,
   ChevronDown, X, Table as TableIcon, Undo, Redo, Type, Upload, Loader2,
-  ChevronUp,
+  ChevronUp, GripVertical,
 } from "lucide-react"
 
-/* ── 네이버 무료 폰트 목록 ────────────────────────────────────────── */
+/* ── 네이버 무료 폰트 ────────────────────────────────────────────── */
 const FONTS = [
   { label: "기본체", value: "" },
   { label: "마루부리", value: "'Maru Buri', serif" },
@@ -29,11 +29,63 @@ const FONTS = [
   { label: "나눔고딕코딩", value: "'Nanum Gothic Coding', monospace" },
 ]
 
+/* ── 이미지 NodeView — 선택 표시 + 드래그 핸들 ──────────────────── */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const ImageNodeView = ({ node, selected }: { node: any; selected: boolean }) => (
+  <NodeViewWrapper
+    as={"span" as React.ElementType}
+    data-drag-handle
+    contentEditable={false}
+    style={{
+      display: "inline-block",
+      position: "relative",
+      cursor: selected ? "grab" : "default",
+      userSelect: "none",
+      verticalAlign: "bottom",
+    }}
+  >
+    <img
+      src={node.attrs.src}
+      alt={node.attrs.alt || ""}
+      draggable={false}
+      style={{
+        maxWidth: "100%",
+        display: "block",
+        borderRadius: 8,
+        margin: "8px 0",
+        outline: selected ? "2.5px solid #4361ee" : "2.5px solid transparent",
+        outlineOffset: 2,
+        transition: "outline 0.1s",
+      }}
+    />
+    {/* 선택 시 상단 뱃지 */}
+    {selected && (
+      <span style={{
+        position: "absolute", top: 14, left: "50%",
+        transform: "translateX(-50%)",
+        background: "#4361ee", color: "#fff",
+        fontSize: 11, padding: "3px 10px",
+        borderRadius: 4, whiteSpace: "nowrap",
+        pointerEvents: "none", display: "flex",
+        alignItems: "center", gap: 4,
+      }}>
+        <GripVertical size={11} />드래그하여 이동
+      </span>
+    )}
+  </NodeViewWrapper>
+)
+
+/* 드래그 가능 이미지 확장 */
+const DraggableImage = ImageExt.extend({
+  draggable: true,
+  addNodeView() {
+    return ReactNodeViewRenderer(ImageNodeView)
+  },
+})
+
 /* ── Custom iframe node ─────────────────────────────────────────── */
 const IFrameNode = Node.create({
-  name: "iframe",
-  group: "block",
-  atom: true,
+  name: "iframe", group: "block", atom: true,
   addAttributes() {
     return {
       src: { default: null },
@@ -44,10 +96,7 @@ const IFrameNode = Node.create({
   parseHTML() { return [{ tag: "iframe[src]" }] },
   renderHTML({ HTMLAttributes }) {
     return ["div", { class: "iframe-wrapper" },
-      ["iframe", mergeAttributes(HTMLAttributes, {
-        width: "100%", frameborder: "0", allowfullscreen: "true",
-      })],
-    ]
+      ["iframe", mergeAttributes(HTMLAttributes, { width: "100%", frameborder: "0", allowfullscreen: "true" })]]
   },
 })
 
@@ -59,6 +108,22 @@ async function getFbStorage() {
   _fbStorage = storage
   return storage
 }
+async function uploadToFirebase(file: File, onProgress: (p: number) => void): Promise<string> {
+  const { ref, uploadBytesResumable, getDownloadURL } = await import("firebase/storage")
+  const storage = await getFbStorage()
+  const path = `blog-images/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`
+  return new Promise((resolve, reject) => {
+    const task = uploadBytesResumable(ref(storage, path), file)
+    task.on("state_changed",
+      snap => onProgress(Math.round(snap.bytesTransferred / snap.totalBytes * 100)),
+      reject,
+      async () => resolve(await getDownloadURL(task.snapshot.ref))
+    )
+  })
+}
+
+/* ── 업로드 진행 항목 타입 ─────────────────────────────────────── */
+interface UploadTask { id: string; name: string; progress: number; error?: string }
 
 /* ── UI helpers ─────────────────────────────────────────────────── */
 function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
@@ -74,11 +139,9 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
     </div>
   )
 }
-
 const btnBase = "h-8 w-8 inline-flex items-center justify-center rounded text-sm transition-colors disabled:opacity-30"
 const btnNormal = "text-gray-600 hover:bg-gray-100"
 const btnActive = "bg-[#4361ee] text-white"
-
 function ToolBtn({ onClick, active, title, disabled, children }: {
   onClick: () => void; active?: boolean; title?: string; disabled?: boolean; children: React.ReactNode
 }) {
@@ -89,9 +152,7 @@ function ToolBtn({ onClick, active, title, disabled, children }: {
     </button>
   )
 }
-
 function Sep() { return <div className="w-px h-5 bg-gray-200 mx-0.5" /> }
-
 const inputCls = "w-full px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#4361ee]/30"
 const modalBtn = "px-4 py-1.5 text-sm rounded-md transition-colors"
 
@@ -104,12 +165,16 @@ export function RichEditor({ content, onChange }: RichEditorProps) {
   const [fontOpen, setFontOpen] = useState(false)
   const headingRef = useRef<HTMLDivElement>(null)
   const fontRef = useRef<HTMLDivElement>(null)
-
-  const [imgUploading, setImgUploading] = useState(false)
-  const [imgProgress, setImgProgress] = useState(0)
-  const [imgError, setImgError] = useState<string | null>(null)
-  const [imgPreview, setImgPreview] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // 모달용 단일 업로드 상태
+  const [modalUploading, setModalUploading] = useState(false)
+  const [modalProgress, setModalProgress] = useState(0)
+  const [modalError, setModalError] = useState<string | null>(null)
+  const [modalPreview, setModalPreview] = useState<string | null>(null)
+
+  // 인라인(드래그&드롭) 다중 업로드 상태
+  const [uploadTasks, setUploadTasks] = useState<UploadTask[]>([])
 
   const [videoUrl, setVideoUrl] = useState("")
   const [mapSrc, setMapSrc] = useState("")
@@ -119,7 +184,6 @@ export function RichEditor({ content, onChange }: RichEditorProps) {
   const [tableRows, setTableRows] = useState("3")
   const [tableCols, setTableCols] = useState("3")
 
-  // 드롭다운 외부 클릭 시 닫기
   useEffect(() => {
     function handler(e: MouseEvent) {
       if (headingRef.current && !headingRef.current.contains(e.target as globalThis.Node)) setHeadingOpen(false)
@@ -129,24 +193,19 @@ export function RichEditor({ content, onChange }: RichEditorProps) {
     return () => document.removeEventListener("mousedown", handler)
   }, [])
 
-  // ref so handleDrop (created once in useEditor) always calls the latest uploadFile
-  const uploadFnRef = useRef<((file: File) => void) | null>(null)
+  // 다중 파일 업로드 함수를 ref에 보관 (useEditor handleDrop에서 사용)
+  const uploadFilesRef = useRef<((files: File[], pos?: number) => void) | null>(null)
 
   const editor = useEditor({
     extensions: [
       StarterKit.configure({ heading: { levels: [1, 2, 3, 4] }, link: false }),
-      ImageExt.configure({ allowBase64: true }),
+      DraggableImage.configure({ allowBase64: true }),
       LinkExt.configure({ openOnClick: false, HTMLAttributes: { class: "text-[#4361ee] underline", target: "_blank" } }),
       Youtube.configure({ width: 640, height: 400 }),
       TextAlign.configure({ types: ["heading", "paragraph"] }),
-      Color,
-      TextStyle,
-      FontFamily,
-      FontSize,
+      Color, TextStyle, FontFamily, FontSize,
       Table.configure({ resizable: false }),
-      TableRow,
-      TableHeader,
-      TableCell,
+      TableRow, TableHeader, TableCell,
       Placeholder.configure({ placeholder: "내용을 입력하세요..." }),
       IFrameNode,
     ],
@@ -154,58 +213,68 @@ export function RichEditor({ content, onChange }: RichEditorProps) {
     onUpdate: ({ editor }) => onChange(editor.getHTML()),
     editorProps: {
       attributes: { class: "rich-editor-body outline-none min-h-[520px] p-5 prose-content" },
-      // 에디터 영역에 이미지 직접 드래그&드롭
-      handleDrop(_view, event) {
-        const file = event.dataTransfer?.files?.[0]
-        if (file?.type.startsWith("image/")) {
+      handleDrop(view, event) {
+        const files = Array.from(event.dataTransfer?.files || [])
+        const imgs = files.filter(f => f.type.startsWith("image/"))
+        if (imgs.length > 0) {
           event.preventDefault()
-          uploadFnRef.current?.(file)
+          const coords = { left: event.clientX, top: event.clientY }
+          const pos = view.posAtCoords(coords)?.pos
+          uploadFilesRef.current?.(imgs, pos)
           return true
         }
         return false
       },
-      // 클립보드 이미지 붙여넣기
       handlePaste(_view, event) {
         const items = Array.from(event.clipboardData?.items || [])
-        const imgItem = items.find(i => i.type.startsWith("image/"))
-        if (imgItem) {
-          const file = imgItem.getAsFile()
-          if (file) { uploadFnRef.current?.(file); return true }
+        const imgs = items
+          .filter(i => i.type.startsWith("image/"))
+          .map(i => i.getAsFile())
+          .filter((f): f is File => f !== null)
+        if (imgs.length > 0) {
+          uploadFilesRef.current?.(imgs)
+          return true
         }
         return false
       },
     },
   })
 
-  const uploadFile = useCallback(async (file: File) => {
+  /* ── 다중 이미지 업로드 ── */
+  const uploadFiles = useCallback(async (files: File[], insertPos?: number) => {
     if (!editor) return
-    if (!file.type.startsWith("image/")) { setImgError("이미지 파일만 업로드할 수 있습니다."); return }
-    setImgError(null)
-    setImgUploading(true)
-    setImgProgress(0)
-    setImgPreview(URL.createObjectURL(file))
-    try {
-      const { ref, uploadBytesResumable, getDownloadURL } = await import("firebase/storage")
-      const storage = await getFbStorage()
-      const path = `blog-images/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`
-      const task = uploadBytesResumable(ref(storage, path), file)
-      task.on("state_changed",
-        snap => setImgProgress(Math.round(snap.bytesTransferred / snap.totalBytes * 100)),
-        err => { setImgError("업로드 실패: " + err.message); setImgUploading(false) },
-        async () => {
-          const url = await getDownloadURL(task.snapshot.ref)
+    const tasks: UploadTask[] = files.map(f => ({
+      id: Math.random().toString(36).slice(2),
+      name: f.name,
+      progress: 0,
+    }))
+    setUploadTasks(prev => [...prev, ...tasks])
+
+    await Promise.allSettled(files.map(async (file, i) => {
+      const taskId = tasks[i].id
+      try {
+        const url = await uploadToFirebase(file, progress => {
+          setUploadTasks(prev => prev.map(t => t.id === taskId ? { ...t, progress } : t))
+        })
+        // 드롭 위치에 삽입, 없으면 현재 커서 위치에 삽입
+        if (insertPos != null) {
+          editor.chain().insertContentAt(insertPos, { type: "image", attrs: { src: url } }).run()
+        } else {
           editor.chain().focus().setImage({ src: url }).run()
-          setImgUploading(false); setImgPreview(null); setModal(null)
         }
-      )
-    } catch (err: unknown) {
-      setImgError("업로드 실패: " + (err instanceof Error ? err.message : String(err)))
-      setImgUploading(false)
-    }
+        setUploadTasks(prev => prev.map(t => t.id === taskId ? { ...t, progress: 100 } : t))
+        // 완료 후 1.5초 뒤 제거
+        setTimeout(() => setUploadTasks(prev => prev.filter(t => t.id !== taskId)), 1500)
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "업로드 실패"
+        setUploadTasks(prev => prev.map(t => t.id === taskId ? { ...t, error: msg } : t))
+        setTimeout(() => setUploadTasks(prev => prev.filter(t => t.id !== taskId)), 3000)
+      }
+    }))
   }, [editor])
 
-  // ref를 최신 uploadFile로 동기화
-  uploadFnRef.current = uploadFile
+  // ref 동기화
+  uploadFilesRef.current = uploadFiles
 
   if (!editor) return (
     <div className="border border-gray-200 rounded-lg bg-white flex items-center justify-center" style={{ minHeight: 560 }}>
@@ -213,21 +282,18 @@ export function RichEditor({ content, onChange }: RichEditorProps) {
     </div>
   )
 
-  // ── 현재 폰트 크기 ──
   const fsRaw = editor.getAttributes("textStyle").fontSize as string | undefined
   const currentFontSize = fsRaw ? parseInt(fsRaw) || 15 : 15
   function applyFontSize(size: number) {
-    const v = Math.min(72, Math.max(8, size))
-    editor.chain().focus().setFontSize(`${v}px`).run()
+    editor.chain().focus().setFontSize(`${Math.min(72, Math.max(8, size))}px`).run()
   }
-
-  // ── 현재 폰트 패밀리 ──
   const currentFont = editor.getAttributes("textStyle").fontFamily as string || ""
 
-  function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (file) uploadFile(file)
+  function onModalFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files || [])
+    if (files.length > 0) uploadFiles(files)
     e.target.value = ""
+    setModal(null)
   }
   function insertVideo() {
     if (!videoUrl.trim()) return
@@ -271,20 +337,18 @@ export function RichEditor({ content, onChange }: RichEditorProps) {
   const activeFont = FONTS.find(f => f.value === currentFont) || FONTS[0]
 
   return (
-    <div className="border border-gray-200 rounded-lg overflow-hidden bg-white">
+    <div className="border border-gray-200 rounded-lg overflow-hidden bg-white" style={{ position: "relative" }}>
       {/* ── Toolbar ── */}
       <div className="border-b border-gray-200 bg-gray-50 px-2 py-1.5 flex flex-wrap gap-0.5 items-center">
-
         <ToolBtn onClick={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo()} title="되돌리기">
           <Undo className="h-3.5 w-3.5" />
         </ToolBtn>
         <ToolBtn onClick={() => editor.chain().focus().redo().run()} disabled={!editor.can().redo()} title="다시실행">
           <Redo className="h-3.5 w-3.5" />
         </ToolBtn>
-
         <Sep />
 
-        {/* 제목 스타일 드롭다운 */}
+        {/* 제목 스타일 */}
         <div className="relative" ref={headingRef}>
           <button type="button" onClick={() => { setHeadingOpen(o => !o); setFontOpen(false) }}
             className="h-8 flex items-center gap-1 px-2 rounded text-sm text-gray-600 hover:bg-gray-100 transition-colors">
@@ -313,7 +377,7 @@ export function RichEditor({ content, onChange }: RichEditorProps) {
           )}
         </div>
 
-        {/* 폰트 선택 드롭다운 */}
+        {/* 폰트 선택 */}
         <div className="relative" ref={fontRef}>
           <button type="button" onClick={() => { setFontOpen(o => !o); setHeadingOpen(false) }}
             className="h-8 flex items-center gap-1 px-2 rounded text-sm text-gray-600 hover:bg-gray-100 transition-colors">
@@ -343,19 +407,14 @@ export function RichEditor({ content, onChange }: RichEditorProps) {
 
         {/* 글씨 크기 */}
         <div className="flex items-center border border-gray-200 rounded bg-white h-8 overflow-hidden">
-          <button type="button" title="글씨 크기 줄이기"
-            onClick={() => applyFontSize(currentFontSize - 1)}
+          <button type="button" title="크기 줄이기" onClick={() => applyFontSize(currentFontSize - 1)}
             className="px-1.5 h-full text-gray-500 hover:bg-gray-100 transition-colors flex items-center">
             <Minus className="h-2.5 w-2.5" />
           </button>
-          <input
-            type="number" min={8} max={72}
-            value={currentFontSize}
+          <input type="number" min={8} max={72} value={currentFontSize}
             onChange={e => applyFontSize(Number(e.target.value))}
-            className="w-9 text-center text-xs text-gray-700 focus:outline-none bg-transparent"
-          />
-          <button type="button" title="글씨 크기 늘리기"
-            onClick={() => applyFontSize(currentFontSize + 1)}
+            className="w-9 text-center text-xs text-gray-700 focus:outline-none bg-transparent" />
+          <button type="button" title="크기 늘리기" onClick={() => applyFontSize(currentFontSize + 1)}
             className="px-1.5 h-full text-gray-500 hover:bg-gray-100 transition-colors flex items-center">
             <ChevronUp className="h-2.5 w-2.5" />
           </button>
@@ -440,48 +499,70 @@ export function RichEditor({ content, onChange }: RichEditorProps) {
         ))}
       </div>
 
-      {/* ── Editor body (드래그 앤 드롭은 editorProps.handleDrop에서 처리) ── */}
+      {/* ── 에디터 본문 ── */}
       <EditorContent editor={editor} />
+
+      {/* ── 다중 업로드 진행 상황 오버레이 ── */}
+      {uploadTasks.length > 0 && (
+        <div style={{
+          position: "absolute", bottom: 12, right: 12,
+          display: "flex", flexDirection: "column", gap: 6,
+          zIndex: 10, pointerEvents: "none",
+        }}>
+          {uploadTasks.map(task => (
+            <div key={task.id} style={{
+              background: task.error ? "#fee2e2" : "#fff",
+              border: `1px solid ${task.error ? "#fca5a5" : "#e5e7eb"}`,
+              borderRadius: 8, padding: "6px 12px",
+              minWidth: 200, boxShadow: "0 2px 8px rgba(0,0,0,0.10)",
+            }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                <span style={{ fontSize: 11, color: task.error ? "#dc2626" : "#374151",
+                  maxWidth: 140, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {task.error ? `❌ ${task.name}` : task.progress >= 100 ? `✅ ${task.name}` : `⬆ ${task.name}`}
+                </span>
+                <span style={{ fontSize: 11, color: "#6b7280" }}>
+                  {task.error ? "실패" : `${task.progress}%`}
+                </span>
+              </div>
+              {!task.error && (
+                <div style={{ height: 3, background: "#e5e7eb", borderRadius: 2 }}>
+                  <div style={{
+                    height: "100%", borderRadius: 2,
+                    background: task.progress >= 100 ? "#22c55e" : "#4361ee",
+                    width: `${task.progress}%`, transition: "width 0.2s",
+                  }} />
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* ── Modals ── */}
       {modal === "image" && (
-        <Modal title="이미지 업로드" onClose={() => { if (!imgUploading) { setModal(null); setImgPreview(null); setImgError(null) } }}>
+        <Modal title="이미지 업로드" onClose={() => { if (!modalUploading) { setModal(null); setModalPreview(null); setModalError(null) } }}>
           <div className="space-y-3">
-            <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={onFileChange} />
+            <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={onModalFileChange} />
             <div
               onDragOver={e => e.preventDefault()}
-              onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files?.[0]; if (f) uploadFile(f) }}
-              onClick={() => !imgUploading && fileInputRef.current?.click()}
-              className={`border-2 border-dashed rounded-lg flex flex-col items-center justify-center gap-2 cursor-pointer transition-colors
-                ${imgUploading ? "border-[#4361ee]/40 bg-blue-50 cursor-default" : "border-gray-200 hover:border-[#4361ee]/50 hover:bg-gray-50"}`}
+              onDrop={e => {
+                e.preventDefault()
+                const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith("image/"))
+                if (files.length > 0) { uploadFiles(files); setModal(null) }
+              }}
+              onClick={() => !modalUploading && fileInputRef.current?.click()}
+              className="border-2 border-dashed rounded-lg flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-[#4361ee]/50 hover:bg-gray-50 transition-colors"
               style={{ minHeight: 140 }}>
-              {imgUploading ? (
-                <>
-                  {imgPreview && <img src={imgPreview} alt="" className="h-20 w-auto rounded object-cover" />}
-                  <div className="flex items-center gap-2 text-sm text-[#4361ee]">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span>업로드 중... {imgProgress}%</span>
-                  </div>
-                  <div className="w-40 h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                    <div className="h-full bg-[#4361ee] transition-all" style={{ width: `${imgProgress}%` }} />
-                  </div>
-                </>
-              ) : (
-                <>
-                  <Upload className="h-8 w-8 text-gray-300" />
-                  <div className="text-center">
-                    <p className="text-sm font-medium text-gray-600">클릭하거나 이미지를 드래그하세요</p>
-                    <p className="text-xs text-gray-400 mt-0.5">JPG, PNG, GIF, WEBP 지원</p>
-                  </div>
-                </>
-              )}
+              <Upload className="h-8 w-8 text-gray-300" />
+              <div className="text-center">
+                <p className="text-sm font-medium text-gray-600">클릭하거나 이미지를 드래그하세요</p>
+                <p className="text-xs text-gray-400 mt-0.5">여러 장 동시 선택 가능 • JPG, PNG, GIF, WEBP</p>
+              </div>
             </div>
-            {imgError && <p className="text-xs text-red-500">{imgError}</p>}
+            {modalError && <p className="text-xs text-red-500">{modalError}</p>}
             <div className="flex justify-end">
-              <button type="button" onClick={() => { setModal(null); setImgPreview(null); setImgError(null) }}
-                disabled={imgUploading} className={`${modalBtn} text-gray-600 hover:bg-gray-100 disabled:opacity-50`}>
-                취소
-              </button>
+              <button type="button" onClick={() => setModal(null)} className={`${modalBtn} text-gray-600 hover:bg-gray-100`}>취소</button>
             </div>
           </div>
         </Modal>
@@ -494,7 +575,6 @@ export function RichEditor({ content, onChange }: RichEditorProps) {
             <input autoFocus type="url" value={videoUrl} onChange={e => setVideoUrl(e.target.value)}
               onKeyDown={e => e.key === "Enter" && insertVideo()}
               className={inputCls} placeholder="https://www.youtube.com/watch?v=..." />
-            <p className="text-xs text-gray-400">YouTube 공유 URL 또는 일반 URL 모두 지원합니다.</p>
             <div className="flex justify-end gap-2 pt-1">
               <button type="button" onClick={() => setModal(null)} className={`${modalBtn} text-gray-600 hover:bg-gray-100`}>취소</button>
               <button type="button" onClick={insertVideo} disabled={!videoUrl.trim()}
@@ -514,9 +594,8 @@ export function RichEditor({ content, onChange }: RichEditorProps) {
             <div className="flex items-center gap-3">
               <label className="text-xs font-medium text-gray-700 whitespace-nowrap">높이 (px)</label>
               <input type="number" value={mapHeight} onChange={e => setMapHeight(e.target.value)}
-                className="w-24 px-3 py-1.5 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#4361ee]/30" />
+                className="w-24 px-3 py-1.5 border border-gray-200 rounded-md text-sm focus:outline-none" />
             </div>
-            <p className="text-xs text-gray-400">Google Maps / 네이버 지도 → 공유 → 지도 퍼가기 코드를 붙여넣으세요.</p>
             <div className="flex justify-end gap-2 pt-1">
               <button type="button" onClick={() => setModal(null)} className={`${modalBtn} text-gray-600 hover:bg-gray-100`}>취소</button>
               <button type="button" onClick={insertMap} disabled={!mapSrc.trim()}
