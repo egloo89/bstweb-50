@@ -39,16 +39,21 @@ export function AdminSidebar({ categories: initialCategories, allCount, selected
   const [renamingIdx, setRenamingIdx] = useState<number | null>(null)
   const [renameVal, setRenameVal] = useState("")
   const [saving, setSaving] = useState(false)
-  const [autoPosting, setAutoPosting] = useState(false)
+  const [autoPosting, setAutoPosting] = useState<"ai" | "finance" | null>(null)
   const [autoResult, setAutoResult] = useState<string | null>(null)
   const newInputRef = useRef<HTMLInputElement>(null)
 
-  async function handleAutoPost() {
-    if (!confirm("AI가 AI트렌드 및 재테크 포스트를 각 1개씩 자동 작성합니다.\n약 30~60초 소요됩니다. 진행할까요?")) return
-    setAutoPosting(true)
+  async function handleAutoPost(type: "ai" | "finance") {
+    const label = type === "ai" ? "AI 트렌드" : "재테크"
+    if (!confirm(`AI가 ${label} 포스트 1개를 자동 작성합니다.\n약 30~60초 소요됩니다. 진행할까요?`)) return
+    setAutoPosting(type)
     setAutoResult(null)
     try {
-      const res = await fetch("/admin/api/auto-post", { method: "POST" })
+      const res = await fetch("/admin/api/auto-post", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type }),
+      })
       const data = await res.json()
       if (!data.ok && data.error) {
         setAutoResult(`❌ 오류: ${data.error}`)
@@ -61,7 +66,7 @@ export function AdminSidebar({ categories: initialCategories, allCount, selected
     } catch (e) {
       setAutoResult(`❌ 네트워크 오류: ${(e as Error).message}`)
     } finally {
-      setAutoPosting(false)
+      setAutoPosting(null)
     }
   }
 
@@ -182,17 +187,30 @@ export function AdminSidebar({ categories: initialCategories, allCount, selected
           <PlusCircle className="h-4 w-4" />
           새 글 추가
         </Link>
-        <button
-          onClick={handleAutoPost}
-          disabled={autoPosting}
-          className="flex items-center justify-center gap-2 w-full py-2 rounded-lg bg-gradient-to-r from-violet-500 to-purple-600 text-white text-sm font-medium hover:from-violet-600 hover:to-purple-700 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
-        >
-          {autoPosting ? (
-            <><Loader2 className="h-4 w-4 animate-spin" /> AI 작성 중...</>
-          ) : (
-            <><Sparkles className="h-4 w-4" /> AI 자동 포스팅</>
-          )}
-        </button>
+        <div className="flex gap-1.5">
+          <button
+            onClick={() => handleAutoPost("ai")}
+            disabled={autoPosting !== null}
+            className="flex items-center justify-center gap-1.5 flex-1 py-2 rounded-lg bg-gradient-to-r from-violet-500 to-purple-600 text-white text-xs font-medium hover:from-violet-600 hover:to-purple-700 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {autoPosting === "ai" ? (
+              <><Loader2 className="h-3.5 w-3.5 animate-spin" /> 작성 중...</>
+            ) : (
+              <><Sparkles className="h-3.5 w-3.5" /> AI 포스팅</>
+            )}
+          </button>
+          <button
+            onClick={() => handleAutoPost("finance")}
+            disabled={autoPosting !== null}
+            className="flex items-center justify-center gap-1.5 flex-1 py-2 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-xs font-medium hover:from-emerald-600 hover:to-teal-700 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {autoPosting === "finance" ? (
+              <><Loader2 className="h-3.5 w-3.5 animate-spin" /> 작성 중...</>
+            ) : (
+              <><Sparkles className="h-3.5 w-3.5" /> 재테크 포스팅</>
+            )}
+          </button>
+        </div>
         {autoResult && (
           <div className="text-[11px] leading-relaxed bg-gray-50 border border-gray-200 rounded-md px-2.5 py-2 text-gray-600 whitespace-pre-line">
             {autoResult}

@@ -131,7 +131,7 @@ async function generateWithModel(genAI: GoogleGenerativeAI, modelName: string, s
   return parsed
 }
 
-export async function POST() {
+export async function POST(req: Request) {
   if (!isAuthenticated()) {
     return NextResponse.json({ ok: false, error: "인증이 필요합니다." }, { status: 401 })
   }
@@ -143,8 +143,16 @@ export async function POST() {
     )
   }
 
+  let type: string = "all"
+  try { const body = await req.json(); type = body.type ?? "all" } catch {}
+
   const categoryList = await readCategoryList()
-  const specs = POST_SPECS.map(s => ({ ...s, category: resolveCategory(s.category, categoryList) }))
+  const allSpecs = POST_SPECS.map(s => ({ ...s, category: resolveCategory(s.category, categoryList) }))
+  const specs = type === "ai"
+    ? allSpecs.filter(s => s.category.toLowerCase() === "ai")
+    : type === "finance"
+    ? allSpecs.filter(s => s.category.toLowerCase() !== "ai")
+    : allSpecs
 
   const results: Array<{ category: string; title: string; slug: string }> = []
   const errors: Array<{ category: string; error: string }> = []
