@@ -9,6 +9,7 @@
     "start": "next start"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.97.1",
     "@hookform/resolvers": "^3.9.1",
     "@next/mdx": "^14.2.33",
     "@radix-ui/react-dialog": "1.1.4",

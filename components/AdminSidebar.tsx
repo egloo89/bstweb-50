@@ -6,6 +6,7 @@ import { useState, useRef, useEffect } from "react"
 import {
   Folder, Star, PlusCircle, LogOut, ExternalLink,
   Settings, Check, X, ChevronUp, ChevronDown, Trash2, FolderPlus, Pencil,
+  Sparkles, Loader2,
 } from "lucide-react"
 
 interface CategoryInfo {
@@ -31,7 +32,31 @@ export function AdminSidebar({ categories: initialCategories, allCount, selected
   const [renamingIdx, setRenamingIdx] = useState<number | null>(null)
   const [renameVal, setRenameVal] = useState("")
   const [saving, setSaving] = useState(false)
+  const [autoPosting, setAutoPosting] = useState(false)
+  const [autoResult, setAutoResult] = useState<string | null>(null)
   const newInputRef = useRef<HTMLInputElement>(null)
+
+  async function handleAutoPost() {
+    if (!confirm("AI가 AI트렌드 및 재테크 포스트를 각 1개씩 자동 작성합니다.\n약 30~60초 소요됩니다. 진행할까요?")) return
+    setAutoPosting(true)
+    setAutoResult(null)
+    try {
+      const res = await fetch("/admin/api/auto-post", { method: "POST" })
+      const data = await res.json()
+      if (!data.ok && data.error) {
+        setAutoResult(`❌ 오류: ${data.error}`)
+      } else {
+        const ok = data.results?.map((r: { title: string; category: string }) => `✅ [${r.category}] ${r.title}`).join("\n") || ""
+        const fail = data.errors?.map((e: { category: string; error: string }) => `❌ [${e.category}] ${e.error}`).join("\n") || ""
+        setAutoResult([ok, fail].filter(Boolean).join("\n"))
+        router.refresh()
+      }
+    } catch (e) {
+      setAutoResult(`❌ 네트워크 오류: ${(e as Error).message}`)
+    } finally {
+      setAutoPosting(false)
+    }
+  }
 
   async function saveCategories(list: string[]) {
     setSaving(true)
@@ -141,8 +166,8 @@ export function AdminSidebar({ categories: initialCategories, allCount, selected
 
   return (
     <aside className="w-[210px] md:w-[230px] shrink-0 border-r border-gray-100 bg-[#f8f9fc] flex flex-col">
-      {/* 새 글 추가 */}
-      <div className="p-3 border-b border-gray-100">
+      {/* 새 글 추가 + 자동 포스팅 */}
+      <div className="p-3 border-b border-gray-100 space-y-2">
         <Link
           href="/admin/new-post"
           className="flex items-center justify-center gap-2 w-full py-2 rounded-lg bg-[#4361ee] text-white text-sm font-medium hover:bg-[#3451d1] transition-colors"
@@ -150,6 +175,22 @@ export function AdminSidebar({ categories: initialCategories, allCount, selected
           <PlusCircle className="h-4 w-4" />
           새 글 추가
         </Link>
+        <button
+          onClick={handleAutoPost}
+          disabled={autoPosting}
+          className="flex items-center justify-center gap-2 w-full py-2 rounded-lg bg-gradient-to-r from-violet-500 to-purple-600 text-white text-sm font-medium hover:from-violet-600 hover:to-purple-700 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          {autoPosting ? (
+            <><Loader2 className="h-4 w-4 animate-spin" /> AI 작성 중...</>
+          ) : (
+            <><Sparkles className="h-4 w-4" /> AI 자동 포스팅</>
+          )}
+        </button>
+        {autoResult && (
+          <div className="text-[11px] leading-relaxed bg-gray-50 border border-gray-200 rounded-md px-2.5 py-2 text-gray-600 whitespace-pre-line">
+            {autoResult}
+          </div>
+        )}
       </div>
 
       <div className="py-3 flex-1 overflow-y-auto">
