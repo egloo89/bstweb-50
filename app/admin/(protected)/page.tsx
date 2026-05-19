@@ -12,7 +12,7 @@ export default async function AdminDashboard({
   searchParams: { category?: string }
 }) {
   const allPosts = await getAllPosts(true)
-  const categories = await getCategories(true)
+  const categories = await getCategories(true, allPosts)
   const selectedCategory = searchParams.category
 
   // alias(이름 변경 이력)까지 포함해서 해당 카테고리의 글을 가져옴

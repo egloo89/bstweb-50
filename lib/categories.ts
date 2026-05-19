@@ -1,6 +1,6 @@
 import fs from "fs"
 import path from "path"
-import { getAllPosts } from "./posts"
+import { getAllPosts, type Post } from "./posts"
 
 export interface CategoryInfo {
   name: string
@@ -113,8 +113,8 @@ export async function writeCategoryRename(oldName: string, newName: string): Pro
   await writeData({ list: newList, aliases: newAliases })
 }
 
-export async function getCategories(includeUnpublished = false): Promise<CategoryInfo[]> {
-  const posts = await getAllPosts(includeUnpublished)
+export async function getCategories(includeUnpublished = false, existingPosts?: Post[]): Promise<CategoryInfo[]> {
+  const posts = existingPosts ?? await getAllPosts(includeUnpublished)
   const { list, aliases } = await readData()
 
   // reverse alias map: oldName -> currentName
