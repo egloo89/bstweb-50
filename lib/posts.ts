@@ -147,7 +147,19 @@ export async function getPostBySlug(slug: string): Promise<Post | null> {
   const deleted = await kvGetDeleted(r)
   if (deleted.has(slug)) return null
   // Fall back to MDX
-  return readMdxPost(slug)
+  const mdx = readMdxPost(slug)
+  if (mdx) return mdx
+  // Last resort: scan slug list and try URL-decoded variant
+  if (r) {
+    const slugs = await kvGetSlugs(r)
+    console.error(`[posts] getPostBySlug("${slug}") not found. Known slugs: ${JSON.stringify(slugs)}`)
+    const decoded = decodeURIComponent(slug)
+    if (decoded !== slug) {
+      const fallback = await r.get<Post>(KV_POST(decoded))
+      if (fallback) { console.error(`[posts] Found via decoded slug: "${decoded}"`); return fallback }
+    }
+  }
+  return null
 }
 
 export async function createPost(input: CreatePostInput): Promise<Post> {

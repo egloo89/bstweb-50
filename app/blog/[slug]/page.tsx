@@ -71,7 +71,17 @@ function LegacyContent({ content }: { content: string }) {
 
 export default async function PostPage({ params }: { params: { slug: string } }) {
   const post = await getPostBySlug(params.slug)
-  if (!post || !post.published) notFound()
+  if (!post) {
+    return (
+      <div style={{ padding: 40, fontFamily: "monospace" }}>
+        <h1 style={{ color: "red" }}>게시글을 찾을 수 없습니다</h1>
+        <p>slug (params): <code>{params.slug}</code></p>
+        <p>encoded: <code>{encodeURIComponent(params.slug)}</code></p>
+        <p>Please visit <a href="/admin/api/debug">/admin/api/debug</a> to check Redis state.</p>
+      </div>
+    )
+  }
+  if (!post.published) notFound()
 
   const allPosts = await getAllPosts()
   const categories = await getCategories()
