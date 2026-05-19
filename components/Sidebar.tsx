@@ -1,7 +1,6 @@
 import Link from "next/link"
 import { getCategories } from "@/lib/categories"
 import { getRecentPosts } from "@/lib/posts"
-import { AdSidebar } from "./AdSense"
 import { Folder, Clock } from "lucide-react"
 import { formatDate } from "@/lib/utils"
 
@@ -51,9 +50,6 @@ export function Sidebar() {
         </ul>
       </section>
 
-      <div className="rounded-xl border bg-card p-3">
-        <AdSidebar />
-      </div>
     </aside>
   )
 }

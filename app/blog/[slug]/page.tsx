@@ -6,7 +6,6 @@ import { getCategories } from "@/lib/categories"
 import { CategorySidebar } from "@/components/CategorySidebar"
 import { BlogHeader } from "@/components/BlogHeader"
 import { MDXContent } from "@/components/MDXContent"
-import { AdInArticle } from "@/components/AdSense"
 
 export const dynamic = "force-dynamic"
 export const revalidate = 0
@@ -38,35 +37,12 @@ const CATEGORY_COLORS: Record<string, string> = {
   기타: "bg-gray-100 text-gray-600",
 }
 
-// HTML content로 저장된 새 글을 렌더링
 function HTMLContent({ html }: { html: string }) {
-  const mid = Math.floor(html.length / 2)
-  // split at a tag boundary near the middle
-  const splitAt = html.indexOf(">", mid) + 1 || mid
-  const first = html.slice(0, splitAt)
-  const second = html.slice(splitAt)
-  return (
-    <>
-      <div className="prose-content" dangerouslySetInnerHTML={{ __html: first }} />
-      <AdInArticle />
-      {second && <div className="prose-content" dangerouslySetInnerHTML={{ __html: second }} />}
-    </>
-  )
+  return <div className="prose-content" dangerouslySetInnerHTML={{ __html: html }} />
 }
 
-// MDX (구형 포스트) 렌더링 — 중간에 광고 삽입
 function LegacyContent({ content }: { content: string }) {
-  const paragraphs = content.split(/\n\n+/)
-  const half = Math.floor(paragraphs.length / 2)
-  const first = paragraphs.slice(0, half).join("\n\n")
-  const second = paragraphs.slice(half).join("\n\n")
-  return (
-    <>
-      <MDXContent source={first} />
-      <AdInArticle />
-      {second && <MDXContent source={second} />}
-    </>
-  )
+  return <MDXContent source={content} />
 }
 
 export default async function PostPage({ params }: { params: { slug: string } }) {

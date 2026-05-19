@@ -6,18 +6,28 @@ import ImageExt from "@tiptap/extension-image"
 import LinkExt from "@tiptap/extension-link"
 import Youtube from "@tiptap/extension-youtube"
 import TextAlign from "@tiptap/extension-text-align"
-import { Color } from "@tiptap/extension-color"
-import { TextStyle } from "@tiptap/extension-text-style"
+import { Color, TextStyle, FontFamily, FontSize } from "@tiptap/extension-text-style"
 import { Table, TableRow, TableHeader, TableCell } from "@tiptap/extension-table"
 import Placeholder from "@tiptap/extension-placeholder"
 import { Node, mergeAttributes } from "@tiptap/core"
-import { useState, useEffect, useRef, useCallback } from "react"
+import { useState, useRef, useCallback, useEffect } from "react"
 import {
   Bold, Italic, Underline as UnderlineIcon, Strikethrough,
   AlignLeft, AlignCenter, AlignRight, List, ListOrdered,
   Quote, Code, Minus, ImageIcon, Video, Map, Link as LinkIcon,
   ChevronDown, X, Table as TableIcon, Undo, Redo, Type, Upload, Loader2,
+  ChevronUp,
 } from "lucide-react"
+
+/* ── 네이버 무료 폰트 목록 ────────────────────────────────────────── */
+const FONTS = [
+  { label: "기본체", value: "" },
+  { label: "마루부리", value: "'Maru Buri', serif" },
+  { label: "나눔고딕", value: "'Nanum Gothic', sans-serif" },
+  { label: "나눔명조", value: "'Nanum Myeongjo', serif" },
+  { label: "나눔손글씨펜", value: "'Nanum Pen Script', cursive" },
+  { label: "나눔고딕코딩", value: "'Nanum Gothic Coding', monospace" },
+]
 
 /* ── Custom iframe node ─────────────────────────────────────────── */
 const IFrameNode = Node.create({
@@ -89,10 +99,11 @@ const modalBtn = "px-4 py-1.5 text-sm rounded-md transition-colors"
 interface RichEditorProps { content: string; onChange: (html: string) => void }
 
 export function RichEditor({ content, onChange }: RichEditorProps) {
-  // ── All hooks must be called unconditionally ──
   const [modal, setModal] = useState<"image" | "video" | "map" | "link" | "table" | null>(null)
   const [headingOpen, setHeadingOpen] = useState(false)
+  const [fontOpen, setFontOpen] = useState(false)
   const headingRef = useRef<HTMLDivElement>(null)
+  const fontRef = useRef<HTMLDivElement>(null)
 
   const [imgUploading, setImgUploading] = useState(false)
   const [imgProgress, setImgProgress] = useState(0)
@@ -108,18 +119,21 @@ export function RichEditor({ content, onChange }: RichEditorProps) {
   const [tableRows, setTableRows] = useState("3")
   const [tableCols, setTableCols] = useState("3")
 
+  // 드롭다운 외부 클릭 시 닫기
   useEffect(() => {
     function handler(e: MouseEvent) {
       if (headingRef.current && !headingRef.current.contains(e.target as globalThis.Node)) setHeadingOpen(false)
+      if (fontRef.current && !fontRef.current.contains(e.target as globalThis.Node)) setFontOpen(false)
     }
     document.addEventListener("mousedown", handler)
     return () => document.removeEventListener("mousedown", handler)
   }, [])
 
+  // ref so handleDrop (created once in useEditor) always calls the latest uploadFile
+  const uploadFnRef = useRef<((file: File) => void) | null>(null)
+
   const editor = useEditor({
     extensions: [
-      // StarterKit v3 includes: Bold, Italic, Strike, Underline, Link, Heading,
-      // BulletList, OrderedList, Code, CodeBlock, Blockquote, HorizontalRule, etc.
       StarterKit.configure({ heading: { levels: [1, 2, 3, 4] }, link: false }),
       ImageExt.configure({ allowBase64: true }),
       LinkExt.configure({ openOnClick: false, HTMLAttributes: { class: "text-[#4361ee] underline", target: "_blank" } }),
@@ -127,6 +141,8 @@ export function RichEditor({ content, onChange }: RichEditorProps) {
       TextAlign.configure({ types: ["heading", "paragraph"] }),
       Color,
       TextStyle,
+      FontFamily,
+      FontSize,
       Table.configure({ resizable: false }),
       TableRow,
       TableHeader,
@@ -136,10 +152,31 @@ export function RichEditor({ content, onChange }: RichEditorProps) {
     ],
     content: content || "",
     onUpdate: ({ editor }) => onChange(editor.getHTML()),
-    editorProps: { attributes: { class: "rich-editor-body outline-none min-h-[520px] p-5 prose-content" } },
+    editorProps: {
+      attributes: { class: "rich-editor-body outline-none min-h-[520px] p-5 prose-content" },
+      // 에디터 영역에 이미지 직접 드래그&드롭
+      handleDrop(_view, event) {
+        const file = event.dataTransfer?.files?.[0]
+        if (file?.type.startsWith("image/")) {
+          event.preventDefault()
+          uploadFnRef.current?.(file)
+          return true
+        }
+        return false
+      },
+      // 클립보드 이미지 붙여넣기
+      handlePaste(_view, event) {
+        const items = Array.from(event.clipboardData?.items || [])
+        const imgItem = items.find(i => i.type.startsWith("image/"))
+        if (imgItem) {
+          const file = imgItem.getAsFile()
+          if (file) { uploadFnRef.current?.(file); return true }
+        }
+        return false
+      },
+    },
   })
 
-  // ── uploadFile must be before any early return ──
   const uploadFile = useCallback(async (file: File) => {
     if (!editor) return
     if (!file.type.startsWith("image/")) { setImgError("이미지 파일만 업로드할 수 있습니다."); return }
@@ -167,22 +204,30 @@ export function RichEditor({ content, onChange }: RichEditorProps) {
     }
   }, [editor])
 
-  // ── Early return AFTER all hooks ──
+  // ref를 최신 uploadFile로 동기화
+  uploadFnRef.current = uploadFile
+
   if (!editor) return (
     <div className="border border-gray-200 rounded-lg bg-white flex items-center justify-center" style={{ minHeight: 560 }}>
       <span className="text-gray-400 text-sm">에디터 초기화 중...</span>
     </div>
   )
 
+  // ── 현재 폰트 크기 ──
+  const fsRaw = editor.getAttributes("textStyle").fontSize as string | undefined
+  const currentFontSize = fsRaw ? parseInt(fsRaw) || 15 : 15
+  function applyFontSize(size: number) {
+    const v = Math.min(72, Math.max(8, size))
+    editor.chain().focus().setFontSize(`${v}px`).run()
+  }
+
+  // ── 현재 폰트 패밀리 ──
+  const currentFont = editor.getAttributes("textStyle").fontFamily as string || ""
+
   function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (file) uploadFile(file)
     e.target.value = ""
-  }
-  function onDrop(e: React.DragEvent) {
-    e.preventDefault()
-    const file = e.dataTransfer.files?.[0]
-    if (file) uploadFile(file)
   }
   function insertVideo() {
     if (!videoUrl.trim()) return
@@ -223,6 +268,7 @@ export function RichEditor({ content, onChange }: RichEditorProps) {
   const activeHeading = headingLevels.find(h =>
     h.level ? editor.isActive("heading", { level: h.level }) : editor.isActive("paragraph")
   ) || headingLevels[0]
+  const activeFont = FONTS.find(f => f.value === currentFont) || FONTS[0]
 
   return (
     <div className="border border-gray-200 rounded-lg overflow-hidden bg-white">
@@ -238,9 +284,9 @@ export function RichEditor({ content, onChange }: RichEditorProps) {
 
         <Sep />
 
-        {/* Heading dropdown */}
+        {/* 제목 스타일 드롭다운 */}
         <div className="relative" ref={headingRef}>
-          <button type="button" onClick={() => setHeadingOpen(o => !o)}
+          <button type="button" onClick={() => { setHeadingOpen(o => !o); setFontOpen(false) }}
             className="h-8 flex items-center gap-1 px-2 rounded text-sm text-gray-600 hover:bg-gray-100 transition-colors">
             <Type className="h-3.5 w-3.5" />
             <span className="w-14 text-left text-xs">{activeHeading.label}</span>
@@ -267,6 +313,54 @@ export function RichEditor({ content, onChange }: RichEditorProps) {
           )}
         </div>
 
+        {/* 폰트 선택 드롭다운 */}
+        <div className="relative" ref={fontRef}>
+          <button type="button" onClick={() => { setFontOpen(o => !o); setHeadingOpen(false) }}
+            className="h-8 flex items-center gap-1 px-2 rounded text-sm text-gray-600 hover:bg-gray-100 transition-colors">
+            <span className="w-20 text-left text-xs truncate" style={{ fontFamily: activeFont.value || undefined }}>
+              {activeFont.label}
+            </span>
+            <ChevronDown className="h-3 w-3" />
+          </button>
+          {fontOpen && (
+            <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-20 min-w-[150px] py-1">
+              {FONTS.map(f => (
+                <button key={f.value} type="button"
+                  onClick={() => {
+                    if (f.value) editor.chain().focus().setFontFamily(f.value).run()
+                    else editor.chain().focus().unsetFontFamily().run()
+                    setFontOpen(false)
+                  }}
+                  style={{ fontFamily: f.value || undefined }}
+                  className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors
+                    ${currentFont === f.value ? "text-[#4361ee] font-semibold" : "text-gray-700"}`}>
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* 글씨 크기 */}
+        <div className="flex items-center border border-gray-200 rounded bg-white h-8 overflow-hidden">
+          <button type="button" title="글씨 크기 줄이기"
+            onClick={() => applyFontSize(currentFontSize - 1)}
+            className="px-1.5 h-full text-gray-500 hover:bg-gray-100 transition-colors flex items-center">
+            <Minus className="h-2.5 w-2.5" />
+          </button>
+          <input
+            type="number" min={8} max={72}
+            value={currentFontSize}
+            onChange={e => applyFontSize(Number(e.target.value))}
+            className="w-9 text-center text-xs text-gray-700 focus:outline-none bg-transparent"
+          />
+          <button type="button" title="글씨 크기 늘리기"
+            onClick={() => applyFontSize(currentFontSize + 1)}
+            className="px-1.5 h-full text-gray-500 hover:bg-gray-100 transition-colors flex items-center">
+            <ChevronUp className="h-2.5 w-2.5" />
+          </button>
+        </div>
+
         <Sep />
 
         <ToolBtn onClick={() => editor.chain().focus().toggleBold().run()} active={editor.isActive("bold")} title="굵게">
@@ -282,7 +376,7 @@ export function RichEditor({ content, onChange }: RichEditorProps) {
           <Strikethrough className="h-3.5 w-3.5" />
         </ToolBtn>
 
-        {/* Color picker */}
+        {/* 글자 색상 */}
         <div className="relative h-8 w-8 inline-flex items-center justify-center rounded hover:bg-gray-100 cursor-pointer" title="글자 색상">
           <span className="text-xs font-bold text-gray-700 select-none">A</span>
           <div className="absolute bottom-1 left-1.5 right-1.5 h-0.5 rounded pointer-events-none"
@@ -346,7 +440,7 @@ export function RichEditor({ content, onChange }: RichEditorProps) {
         ))}
       </div>
 
-      {/* ── Editor body ── */}
+      {/* ── Editor body (드래그 앤 드롭은 editorProps.handleDrop에서 처리) ── */}
       <EditorContent editor={editor} />
 
       {/* ── Modals ── */}
@@ -356,7 +450,7 @@ export function RichEditor({ content, onChange }: RichEditorProps) {
             <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={onFileChange} />
             <div
               onDragOver={e => e.preventDefault()}
-              onDrop={onDrop}
+              onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files?.[0]; if (f) uploadFile(f) }}
               onClick={() => !imgUploading && fileInputRef.current?.click()}
               className={`border-2 border-dashed rounded-lg flex flex-col items-center justify-center gap-2 cursor-pointer transition-colors
                 ${imgUploading ? "border-[#4361ee]/40 bg-blue-50 cursor-default" : "border-gray-200 hover:border-[#4361ee]/50 hover:bg-gray-50"}`}

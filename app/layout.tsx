@@ -1,7 +1,5 @@
 import type { Metadata } from "next"
-import Script from "next/script"
 import "./globals.css"
-import { ADSENSE_CLIENT } from "@/components/AdSense"
 
 export const metadata: Metadata = {
   title: {
@@ -17,23 +15,18 @@ export const metadata: Metadata = {
     type: "website",
     locale: "ko_KR",
   },
-  other: {
-    "google-adsense-account": ADSENSE_CLIENT,
-  },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ko" suppressHydrationWarning>
       <head>
-        <Script
-          id="adsense-script"
-          async
-          strategy="afterInteractive"
-          src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_CLIENT}`}
-          crossOrigin="anonymous"
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Maru+Buri:wght@300;400;500;600;700&family=Nanum+Gothic:wght@400;700;800&family=Nanum+Gothic+Coding&family=Nanum+Myeongjo:wght@400;700;800&family=Nanum+Pen+Script&display=swap"
+          rel="stylesheet"
         />
-        <meta name="google-adsense-account" content={ADSENSE_CLIENT} />
       </head>
       <body>
         {children}
