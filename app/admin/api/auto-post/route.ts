@@ -65,7 +65,26 @@ function resolveCategory(specCategory: string, list: string[]): string {
 
 async function generatePost(spec: PostSpec) {
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
-  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" })
+  const MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
+
+  let lastError: Error | null = null
+  for (const modelName of MODELS) {
+    try {
+      return await generateWithModel(genAI, modelName, spec)
+    } catch (e) {
+      lastError = e as Error
+      const msg = lastError.message ?? ""
+      if (msg.includes("503") || msg.includes("overloaded") || msg.includes("high demand") || msg.includes("Service Unavailable")) {
+        continue
+      }
+      throw e
+    }
+  }
+  throw lastError
+}
+
+async function generateWithModel(genAI: GoogleGenerativeAI, modelName: string, spec: PostSpec) {
+  const model = genAI.getGenerativeModel({ model: modelName })
 
   const today = new Date().toLocaleDateString("ko-KR", {
     year: "numeric",
