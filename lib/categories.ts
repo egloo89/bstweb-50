@@ -18,10 +18,7 @@ const CATEGORIES_FILE = path.join(POSTS_DIR, "_categories.json")
 const TMP_FILE = "/tmp/_bstweb_cats.json"
 const KV_KEY = "bstweb_categories"
 
-// Module-level memory cache
-let _mem: CategoryData | null = null
-
-// ── KV helpers (gracefully no-op when KV env vars are absent) ──────────────
+// ── KV helpers ──────────────────────────────────────────────────────────────
 
 async function kvGet(): Promise<CategoryData | null> {
   try {
@@ -41,7 +38,7 @@ async function kvSet(data: CategoryData): Promise<void> {
   } catch {}
 }
 
-// ── File helpers ────────────────────────────────────────────────────────────
+// ── File helpers (local dev / fallback) ────────────────────────────────────
 
 function fileGet(): CategoryData | null {
   for (const file of [TMP_FILE, CATEGORIES_FILE]) {
@@ -65,24 +62,21 @@ function fileSet(data: CategoryData): void {
   } catch {}
 }
 
-// ── Core read / write ───────────────────────────────────────────────────────
+// ── Core read / write — NO module-level cache to prevent stale data ─────────
 
 async function readData(): Promise<CategoryData> {
-  if (_mem !== null) return _mem
-  // 1. Try Vercel KV (persistent across all instances)
+  // Always read from Redis first so changes from any Lambda instance are visible
   const fromKV = await kvGet()
-  if (fromKV) { _mem = fromKV; return _mem }
-  // 2. Try /tmp or bundled file (local dev / same instance)
+  if (fromKV) return fromKV
+  // Fallback: /tmp or bundled file (local dev)
   const fromFile = fileGet()
-  if (fromFile) { _mem = fromFile; return _mem }
-  // 3. Built-in defaults
-  _mem = { list: ["AI", "웹개발"], aliases: {} }
-  return _mem
+  if (fromFile) return fromFile
+  // Default
+  return { list: ["AI", "웹개발"], aliases: {} }
 }
 
 async function writeData(data: CategoryData): Promise<void> {
-  _mem = data
-  await kvSet(data)   // primary: Vercel KV
+  await kvSet(data)   // primary: Vercel KV (shared across all instances)
   fileSet(data)       // secondary: /tmp + project dir (local dev)
 }
 
