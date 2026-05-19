@@ -74,7 +74,7 @@ export function AdminPostTable({ posts, selectedCategory }: Props) {
           <span className="ml-2 text-xs text-gray-400 font-normal">{posts.length}개</span>
         </span>
         <Link
-          href="/admin/new-post"
+          href={selectedCategory ? `/admin/new-post?category=${encodeURIComponent(selectedCategory)}` : "/admin/new-post"}
           className="text-xs text-[#4361ee] hover:underline"
         >
           + 새 글 추가
@@ -85,7 +85,7 @@ export function AdminPostTable({ posts, selectedCategory }: Props) {
         <div className="flex flex-col items-center justify-center py-24 text-sm text-gray-400 gap-3">
           <p>등록된 글이 없습니다.</p>
           <Link
-            href="/admin/new-post"
+            href={selectedCategory ? `/admin/new-post?category=${encodeURIComponent(selectedCategory)}` : "/admin/new-post"}
             className="px-4 py-2 rounded-lg bg-[#4361ee] text-white text-xs hover:bg-[#3451d1] transition-colors"
           >
             첫 글 작성하기
