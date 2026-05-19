@@ -12,7 +12,7 @@ export default async function AdminDashboard({
   searchParams: { category?: string }
 }) {
   const allPosts = await getAllPosts(true)
-  const categories = await getCategories()
+  const categories = await getCategories(true)
   const selectedCategory = searchParams.category
 
   const posts = selectedCategory

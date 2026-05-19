@@ -113,8 +113,8 @@ export async function writeCategoryRename(oldName: string, newName: string): Pro
   await writeData({ list: newList, aliases: newAliases })
 }
 
-export async function getCategories(): Promise<CategoryInfo[]> {
-  const posts = await getAllPosts()
+export async function getCategories(includeUnpublished = false): Promise<CategoryInfo[]> {
+  const posts = await getAllPosts(includeUnpublished)
   const { list, aliases } = await readData()
 
   // reverse alias map: oldName -> currentName
