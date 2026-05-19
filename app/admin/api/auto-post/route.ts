@@ -3,11 +3,9 @@ import { revalidatePath } from "next/cache"
 import { isAuthenticated } from "@/lib/auth"
 import { createPost } from "@/lib/posts"
 import { slugify } from "@/lib/utils"
-import Anthropic from "@anthropic-ai/sdk"
+import { GoogleGenerativeAI } from "@google/generative-ai"
 
 export const maxDuration = 120
-
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
 // Pexels API로 이미지 검색 (API 키 없으면 picsum 사용)
 async function fetchImage(query: string, seed: string): Promise<string> {
@@ -24,7 +22,6 @@ async function fetchImage(query: string, seed: string): Promise<string> {
       }
     } catch {}
   }
-  // 키 없으면 picsum (seed로 항상 같은 이미지)
   return `https://picsum.photos/seed/${seed}/1200/630`
 }
 
@@ -51,26 +48,23 @@ const POST_SPECS: PostSpec[] = [
 ]
 
 async function generatePost(spec: PostSpec) {
+  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" })
+
   const today = new Date().toLocaleDateString("ko-KR", {
     year: "numeric",
     month: "long",
     day: "numeric",
   })
 
-  const message = await client.messages.create({
-    model: "claude-haiku-4-5-20251001",
-    max_tokens: 4096,
-    messages: [
-      {
-        role: "user",
-        content: `당신은 한국어 블로그 전문 작가입니다. 오늘 날짜는 ${today}입니다.
+  const prompt = `당신은 한국어 블로그 전문 작가입니다. 오늘 날짜는 ${today}입니다.
 
 다음 주제로 블로그 포스트를 작성해주세요: **${spec.topic}**
 
 요구사항:
 - 언어: 한국어
 - 분량: 1500자 이상 (글자 수 충분히)
-- 소제목: 5개 이상 (## 마크다운 형식)
+- 소제목: 5개 이상 (<h2> 태그 사용)
 - 최신 트렌드와 실용적인 정보 중심
 - 독자가 바로 활용할 수 있는 구체적인 내용
 - 친근하고 읽기 쉬운 문체
@@ -80,18 +74,18 @@ async function generatePost(spec: PostSpec) {
   "title": "포스트 제목",
   "excerpt": "포스트 요약 (2-3문장, 80자 이내)",
   "tags": ["태그1", "태그2", "태그3"],
-  "content": "HTML 형식의 본문 (h2 소제목 5개 이상, p 태그, ul/li 목록 등 활용)"
-}
+  "content": "HTML 형식의 본문 (<h2> 소제목 5개 이상, <p>, <ul>, <li>, <strong>, <em> 태그 활용)"
+}`
 
-content는 HTML 형식으로 작성하되, <h2>, <h3>, <p>, <ul>, <li>, <strong>, <em> 태그를 사용하세요.`,
-      },
-    ],
-  })
+  const result = await model.generateContent(prompt)
+  const raw = result.response.text().trim()
 
-  const raw = (message.content[0] as { type: string; text: string }).text.trim()
+  const jsonStr = raw
+    .replace(/^```json\s*/i, "")
+    .replace(/^```\s*/i, "")
+    .replace(/```\s*$/i, "")
+    .trim()
 
-  // JSON 파싱 (코드블록 제거 후)
-  const jsonStr = raw.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```\s*$/i, "").trim()
   const parsed = JSON.parse(jsonStr) as {
     title: string
     excerpt: string
@@ -107,9 +101,9 @@ export async function POST() {
     return NextResponse.json({ ok: false, error: "인증이 필요합니다." }, { status: 401 })
   }
 
-  if (!process.env.ANTHROPIC_API_KEY) {
+  if (!process.env.GEMINI_API_KEY) {
     return NextResponse.json(
-      { ok: false, error: "ANTHROPIC_API_KEY 환경 변수가 설정되지 않았습니다." },
+      { ok: false, error: "GEMINI_API_KEY 환경 변수가 설정되지 않았습니다." },
       { status: 500 }
     )
   }
