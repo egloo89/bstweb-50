@@ -115,11 +115,16 @@ async function generateWithModel(genAI: GoogleGenerativeAI, modelName: string, s
   const result = await model.generateContent(prompt)
   const raw = result.response.text().trim()
 
-  const jsonStr = raw
+  // 코드블록 제거 후 첫 번째 { ... } 블록만 추출
+  const stripped = raw
     .replace(/^```json\s*/i, "")
     .replace(/^```\s*/i, "")
     .replace(/```\s*$/i, "")
     .trim()
+
+  const match = stripped.match(/\{[\s\S]*\}/)
+  if (!match) throw new Error("Gemini 응답에서 JSON을 찾을 수 없습니다.")
+  const jsonStr = match[0]
 
   const parsed = JSON.parse(jsonStr) as {
     title: string
