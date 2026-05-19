@@ -46,6 +46,11 @@ export function AdminSidebar({ categories: initialCategories, allCount, selected
         alert(`저장 실패: ${data.error || "알 수 없는 오류"}`)
         return
       }
+      // 카테고리 목록 최신화: counts도 새로 fetch
+      const fresh = await fetch("/admin/api/categories").then(r => r.json())
+      if (fresh.ok && Array.isArray(fresh.categories)) {
+        setCats(fresh.categories)
+      }
       router.refresh()
     } finally {
       setSaving(false)

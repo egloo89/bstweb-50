@@ -54,7 +54,6 @@ export function CategorySidebar({ categories, totalCount, selectedCategory }: Pr
 
         {/* 카테고리 목록 */}
         {categories
-          .filter((c) => c.count > 0)
           .map((cat) => {
             const isActive = selectedCategory === cat.name
             return (
@@ -62,11 +61,13 @@ export function CategorySidebar({ categories, totalCount, selectedCategory }: Pr
                 key={cat.name}
                 href={`/category/${cat.slug}`}
                 className={`flex items-center justify-between px-5 py-2.5 text-[13px] md:text-sm transition-colors ${
-                  isActive ? "bg-[#4361ee]/10 text-[#4361ee] font-semibold" : "text-gray-700 hover:bg-gray-100"
+                  isActive ? "bg-[#4361ee]/10 text-[#4361ee] font-semibold"
+                  : cat.count === 0 ? "text-gray-400 hover:bg-gray-100"
+                  : "text-gray-700 hover:bg-gray-100"
                 }`}
               >
                 <span className="flex items-center gap-2.5 min-w-0">
-                  <Folder className={`h-4 w-4 shrink-0 ${isActive ? "text-[#4361ee]" : "text-amber-500"}`} />
+                  <Folder className={`h-4 w-4 shrink-0 ${isActive ? "text-[#4361ee]" : cat.count === 0 ? "text-gray-300" : "text-amber-500"}`} />
                   <span className="truncate">{cat.name}</span>
                 </span>
                 <span className="text-xs text-gray-400 font-normal ml-1 shrink-0">{cat.count}</span>

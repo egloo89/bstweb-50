@@ -27,6 +27,8 @@ export async function POST(req: Request) {
     } catch {}
 
     revalidatePath("/", "layout")
+    revalidatePath("/blog", "layout")
+    revalidatePath("/admin", "layout")
     return NextResponse.json({ ok: true })
   } catch (e) {
     return NextResponse.json({ ok: false, error: String(e) }, { status: 500 })

@@ -15,6 +15,8 @@ export async function PUT(req: Request) {
     const list = categories.map((c: unknown) => String(c).trim()).filter(Boolean)
     await writeCategoryList(list)
     revalidatePath("/", "layout")
+    revalidatePath("/blog", "layout")
+    revalidatePath("/admin", "layout")
     return NextResponse.json({ ok: true, categories: list })
   } catch (e) {
     return NextResponse.json({ ok: false, error: String(e) }, { status: 500 })
