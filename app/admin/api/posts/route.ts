@@ -8,7 +8,7 @@ export async function GET() {
   if (!isAuthenticated()) {
     return NextResponse.json({ ok: false, error: "인증이 필요합니다." }, { status: 401 })
   }
-  return NextResponse.json({ ok: true, posts: getAllPosts(true) })
+  return NextResponse.json({ ok: true, posts: await getAllPosts(true) })
 }
 
 export async function POST(req: Request) {
@@ -21,7 +21,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "제목이 필요합니다." }, { status: 400 })
     }
     const slug = slugify(body.slug || body.title) || `post-${Date.now()}`
-    const post = createPost({
+    const post = await createPost({
       slug,
       title: body.title,
       date: body.date,

@@ -14,7 +14,7 @@ export const metadata = {
 }
 
 export default async function PopularPage() {
-  const allPosts = getAllPosts()
+  const allPosts = await getAllPosts()
   const categories = await getCategories()
 
   const posts = [...allPosts]

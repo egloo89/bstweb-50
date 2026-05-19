@@ -14,17 +14,16 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "이름이 비어있습니다" }, { status: 400 })
     }
 
-    // Update KV + alias map
     await writeCategoryRename(oldName, trimmedNew)
 
-    // Try to update post frontmatter (works locally; silent on Vercel read-only FS)
+    // Update category field on posts stored in Redis
     try {
-      const posts = getAllPosts(true)
-      for (const post of posts) {
-        if (post.category === oldName) {
-          updatePost(post.slug, { ...post, category: trimmedNew })
-        }
-      }
+      const posts = await getAllPosts(true)
+      await Promise.all(
+        posts
+          .filter(p => p.category === oldName)
+          .map(p => updatePost(p.slug, { ...p, category: trimmedNew }))
+      )
     } catch {}
 
     revalidatePath("/", "layout")

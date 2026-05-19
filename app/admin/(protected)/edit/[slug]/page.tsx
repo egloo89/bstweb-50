@@ -4,8 +4,8 @@ import { PostForm } from "../../PostForm"
 
 export const dynamic = "force-dynamic"
 
-export default function EditPostPage({ params }: { params: { slug: string } }) {
-  const post = getPostBySlug(params.slug)
+export default async function EditPostPage({ params }: { params: { slug: string } }) {
+  const post = await getPostBySlug(params.slug)
   if (!post) notFound()
 
   return (

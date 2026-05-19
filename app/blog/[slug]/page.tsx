@@ -11,8 +11,8 @@ import { AdInArticle } from "@/components/AdSense"
 export const dynamic = "force-dynamic"
 export const revalidate = 0
 
-export function generateMetadata({ params }: { params: { slug: string } }) {
-  const post = getPostBySlug(params.slug)
+export async function generateMetadata({ params }: { params: { slug: string } }) {
+  const post = await getPostBySlug(params.slug)
   if (!post) return { title: "글을 찾을 수 없습니다" }
   return {
     title: post.title,
@@ -70,10 +70,10 @@ function LegacyContent({ content }: { content: string }) {
 }
 
 export default async function PostPage({ params }: { params: { slug: string } }) {
-  const post = getPostBySlug(params.slug)
+  const post = await getPostBySlug(params.slug)
   if (!post || !post.published) notFound()
 
-  const allPosts = getAllPosts()
+  const allPosts = await getAllPosts()
   const categories = await getCategories()
   const idx = allPosts.findIndex(p => p.slug === post.slug)
   const prevPost = idx < allPosts.length - 1 ? allPosts[idx + 1] : null

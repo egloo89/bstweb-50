@@ -24,7 +24,7 @@ export default async function CategoryPage({
   searchParams: { page?: string }
 }) {
   const categoryName = decodeURIComponent(params.category)
-  const allPosts = getAllPosts()
+  const allPosts = await getAllPosts()
   const categories = await getCategories()
   const catPosts = await getPostsByCategory(categoryName)
 

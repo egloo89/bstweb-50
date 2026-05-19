@@ -16,7 +16,7 @@ export const metadata = {
 }
 
 export default async function BlogPage({ searchParams }: { searchParams: { page?: string } }) {
-  const allPosts = getAllPosts()
+  const allPosts = await getAllPosts()
   const categories = await getCategories()
   const page = Math.max(1, parseInt(searchParams.page || "1", 10) || 1)
   const totalPages = Math.max(1, Math.ceil(allPosts.length / PAGE_SIZE))

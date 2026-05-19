@@ -10,7 +10,7 @@ function unauthorized() {
 
 export async function GET(_req: Request, { params }: { params: { slug: string } }) {
   if (!isAuthenticated()) return unauthorized()
-  const post = getPostBySlug(params.slug)
+  const post = await getPostBySlug(params.slug)
   if (!post) return NextResponse.json({ ok: false, error: "찾을 수 없음" }, { status: 404 })
   return NextResponse.json({ ok: true, post })
 }
@@ -20,7 +20,7 @@ export async function PUT(req: Request, { params }: { params: { slug: string } }
   try {
     const body = await req.json()
     const newSlug = slugify(body.slug || params.slug) || params.slug
-    const updated = updatePost(params.slug, {
+    const updated = await updatePost(params.slug, {
       slug: newSlug,
       title: body.title,
       date: body.date,
@@ -40,7 +40,7 @@ export async function PUT(req: Request, { params }: { params: { slug: string } }
 
 export async function DELETE(_req: Request, { params }: { params: { slug: string } }) {
   if (!isAuthenticated()) return unauthorized()
-  const ok = deletePost(params.slug)
+  const ok = await deletePost(params.slug)
   if (!ok) return NextResponse.json({ ok: false, error: "찾을 수 없음" }, { status: 404 })
   revalidatePath("/", "layout")
   return NextResponse.json({ ok: true })
