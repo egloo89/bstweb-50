@@ -26,10 +26,10 @@ export default async function BlogPage({ searchParams }: { searchParams: { page?
   const posts = allPosts.slice(start, start + PAGE_SIZE)
 
   return (
-    <div className="blog-container">
+    <div className="blog-container flex flex-col">
       <BlogHeader />
       <FeaturedPosts posts={allPosts} />
-      <div className="flex" style={{ minHeight: 500 }}>
+      <div className="flex flex-1" style={{ minHeight: 500 }}>
         <div className="hidden md:block">
           <CategorySidebar categories={categories} totalCount={allPosts.length} />
         </div>

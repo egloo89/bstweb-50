@@ -81,9 +81,9 @@ export default async function PostPage({ params }: { params: { slug: string } })
   const colorClass = CATEGORY_COLORS[post.category] || CATEGORY_COLORS["기타"]
 
   return (
-    <div className="blog-container">
+    <div className="blog-container flex flex-col">
       <BlogHeader />
-      <div className="flex" style={{ minHeight: 600 }}>
+      <div className="flex flex-1" style={{ minHeight: 600 }}>
         <div className="hidden md:block">
           <CategorySidebar categories={categories} totalCount={allPosts.length} selectedCategory={post.category} />
         </div>
