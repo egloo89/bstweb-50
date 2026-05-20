@@ -25,7 +25,13 @@ const CATEGORY_COLORS: Record<string, string> = {
 function formatDate(dateStr: string) {
   const d = new Date(dateStr)
   if (isNaN(d.getTime())) return dateStr
-  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}.`
+  const pad = (n: number) => String(n).padStart(2, "0")
+  const now = new Date()
+  const isToday = d.toDateString() === now.toDateString()
+  const hasTime = dateStr.includes("T") || dateStr.includes(" ")
+  const timePart = hasTime ? ` ${pad(d.getHours())}:${pad(d.getMinutes())}` : ""
+  if (isToday) return `오늘 ${pad(d.getHours())}:${pad(d.getMinutes())}`
+  return `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())}.${timePart}`
 }
 
 function formatScheduled(iso: string) {
@@ -104,7 +110,7 @@ export function AdminPostTable({ posts, selectedCategory }: Props) {
               <th className="pl-5 pr-2 py-2.5 text-left text-xs text-gray-400 font-medium w-6">#</th>
               <th className="py-2.5 pr-3 text-left text-xs text-gray-400 font-medium">제목</th>
               <th className="py-2.5 pr-3 text-xs text-gray-400 font-medium w-20 text-center hidden md:table-cell">상태</th>
-              <th className="py-2.5 pr-3 text-xs text-gray-400 font-medium w-24 text-right hidden md:table-cell">날짜</th>
+              <th className="py-2.5 pr-3 text-xs text-gray-400 font-medium w-32 text-right hidden md:table-cell">날짜</th>
               <th className="py-2.5 pr-5 text-xs text-gray-400 font-medium w-36 text-right">관리</th>
             </tr>
           </thead>
