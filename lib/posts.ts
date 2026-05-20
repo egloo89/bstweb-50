@@ -229,6 +229,7 @@ export async function updatePost(slug: string, input: CreatePostInput): Promise<
     published: input.published !== false,
     content: input.content,
     views: existing.views ?? 0,
+    ...(input.scheduledAt ? { scheduledAt: input.scheduledAt } : {}),
   }
 
   if (!r) throw new Error("저장소에 연결할 수 없습니다.")

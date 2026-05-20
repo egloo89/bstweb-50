@@ -22,6 +22,7 @@ export default async function EditPostPage({ params }: { params: { slug: string 
         thumbnail: post.thumbnail || "",
         published: post.published,
         content: post.content,
+        scheduledAt: post.scheduledAt,
       }}
     />
   )

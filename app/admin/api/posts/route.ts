@@ -31,6 +31,7 @@ export async function POST(req: Request) {
       thumbnail: body.thumbnail || "",
       published: body.published !== false,
       content: body.content || "",
+      ...(body.scheduledAt ? { scheduledAt: body.scheduledAt } : {}),
     })
     revalidatePath("/", "layout")
     return NextResponse.json({ ok: true, post })
