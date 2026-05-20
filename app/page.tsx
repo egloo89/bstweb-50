@@ -37,7 +37,7 @@ export default async function HomePage({ searchParams }: { searchParams: { page?
           basePath="/"
         />
       </div>
+      <SiteFooter />
     </div>
-    <SiteFooter />
   )
 }

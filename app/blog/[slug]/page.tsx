@@ -170,7 +170,7 @@ export default async function PostPage({ params }: { params: { slug: string } })
           </div>
         </main>
       </div>
+      <SiteFooter />
     </div>
-    <SiteFooter />
   )
 }

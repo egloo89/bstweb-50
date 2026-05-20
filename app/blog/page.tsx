@@ -42,7 +42,7 @@ export default async function BlogPage({ searchParams }: { searchParams: { page?
           basePath="/blog"
         />
       </div>
+      <SiteFooter />
     </div>
-    <SiteFooter />
   )
 }
