@@ -60,26 +60,27 @@ function resolveCategory(specCategory: string, list: string[]): string {
 
 async function generatePost(spec: PostSpec) {
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
-  const MODELS = ["gemini-2.5-flash", "gemini-1.5-flash", "gemini-1.5-flash-8b"]
+  const MODEL = "gemini-2.5-flash"
+  const MAX_RETRIES = 3
 
   let lastError: Error | null = null
-  for (const modelName of MODELS) {
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
-      return await generateWithModel(genAI, modelName, spec)
+      return await generateWithModel(genAI, MODEL, spec)
     } catch (e) {
       lastError = e as Error
       const msg = lastError.message ?? ""
-      // 일시적 과부하(503) 또는 해당 모델 사용 불가(404) → 다음 모델로 폴백
+      // 503 과부하 → 잠시 후 재시도
       if (
         msg.includes("503") ||
-        msg.includes("404") ||
         msg.includes("overloaded") ||
         msg.includes("high demand") ||
-        msg.includes("Service Unavailable") ||
-        msg.includes("no longer available") ||
-        msg.includes("Not Found")
+        msg.includes("Service Unavailable")
       ) {
-        continue
+        if (attempt < MAX_RETRIES) {
+          await new Promise(r => setTimeout(r, attempt * 5000)) // 5초, 10초 대기
+          continue
+        }
       }
       throw e
     }
