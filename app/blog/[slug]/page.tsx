@@ -13,10 +13,21 @@ export const revalidate = 0
 export async function generateMetadata({ params }: { params: { slug: string } }) {
   const post = await getPostBySlug(params.slug)
   if (!post) return { title: "글을 찾을 수 없습니다" }
+  const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://bstweb-50.vercel.app"
+  const url = `${BASE_URL}/blog/${params.slug}`
   return {
     title: post.title,
     description: post.excerpt,
-    openGraph: { title: post.title, description: post.excerpt, type: "article", publishedTime: post.date },
+    keywords: post.tags,
+    alternates: { canonical: url },
+    openGraph: {
+      title: post.title,
+      description: post.excerpt,
+      type: "article",
+      publishedTime: post.date,
+      url,
+      images: post.thumbnail ? [{ url: post.thumbnail, width: 1200, height: 630, alt: post.title }] : [],
+    },
   }
 }
 
@@ -103,6 +114,29 @@ export default async function PostPage({ params }: { params: { slug: string } })
           {post.thumbnail && (
             <img src={post.thumbnail} alt={post.title} className="w-full rounded-lg mb-6 max-h-80 object-cover" />
           )}
+
+          {/* JSON-LD 구조화 데이터 (구글 rich result) */}
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{
+              __html: JSON.stringify({
+                "@context": "https://schema.org",
+                "@type": "BlogPosting",
+                headline: post.title,
+                description: post.excerpt,
+                image: post.thumbnail || undefined,
+                datePublished: post.date,
+                dateModified: post.date,
+                author: { "@type": "Person", name: "Black Bay Blog" },
+                publisher: {
+                  "@type": "Organization",
+                  name: "Black Bay Blog",
+                  logo: { "@type": "ImageObject", url: `${process.env.NEXT_PUBLIC_SITE_URL || "https://bstweb-50.vercel.app"}/logo.png` },
+                },
+                keywords: post.tags.join(", "),
+              }),
+            }}
+          />
 
           <article>
             {isHTML
