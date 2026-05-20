@@ -1,6 +1,7 @@
 import { getAllPosts } from "@/lib/posts"
 import { getCategories } from "@/lib/categories"
 import { BlogHeader } from "@/components/BlogHeader"
+import { SiteFooter } from "@/components/SiteFooter"
 
 export const dynamic = "force-dynamic"
 export const revalidate = 0
@@ -37,5 +38,6 @@ export default async function HomePage({ searchParams }: { searchParams: { page?
         />
       </div>
     </div>
+    <SiteFooter />
   )
 }

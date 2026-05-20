@@ -6,6 +6,7 @@ import { getCategories } from "@/lib/categories"
 import { CategorySidebar } from "@/components/CategorySidebar"
 import { BlogHeader } from "@/components/BlogHeader"
 import { MDXContent } from "@/components/MDXContent"
+import { SiteFooter } from "@/components/SiteFooter"
 
 export const dynamic = "force-dynamic"
 export const revalidate = 0
@@ -170,5 +171,6 @@ export default async function PostPage({ params }: { params: { slug: string } })
         </main>
       </div>
     </div>
+    <SiteFooter />
   )
 }
