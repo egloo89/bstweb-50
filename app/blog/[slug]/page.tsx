@@ -84,7 +84,7 @@ export default async function PostPage({ params }: { params: { slug: string } })
     <div className="blog-container flex flex-col">
       <BlogHeader />
       <div className="flex flex-1" style={{ minHeight: 600 }}>
-        <div className="hidden md:block">
+        <div className="hidden md:flex">
           <CategorySidebar categories={categories} totalCount={allPosts.length} selectedCategory={post.category} />
         </div>
         <main className="flex-1 min-w-0 px-4 md:px-8 py-5 md:py-7">

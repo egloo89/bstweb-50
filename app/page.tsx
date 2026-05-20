@@ -25,7 +25,7 @@ export default async function HomePage({ searchParams }: { searchParams: { page?
       <BlogHeader />
       <FeaturedPosts posts={allPosts} />
       <div className="flex flex-1" style={{ minHeight: 500 }}>
-        <div className="hidden md:block">
+        <div className="hidden md:flex">
           <CategorySidebar categories={categories} totalCount={allPosts.length} />
         </div>
         <PostTable

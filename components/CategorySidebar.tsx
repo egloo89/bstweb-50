@@ -22,7 +22,7 @@ export function CategorySidebar({ categories, totalCount, selectedCategory }: Pr
   const isPopular = pathname === "/popular"
 
   return (
-    <aside className="w-[220px] md:w-[240px] shrink-0 border-r border-gray-100 bg-[#f8f9fc] min-h-full">
+    <aside className="w-[220px] md:w-[240px] shrink-0 border-r border-gray-100 bg-[#f8f9fc]">
       <div className="py-4">
         {/* 전체글보기 */}
         <Link
