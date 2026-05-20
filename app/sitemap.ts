@@ -1,6 +1,8 @@
 import { getAllPosts } from "@/lib/posts"
 
-const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://bstweb-50.vercel.app"
+export const dynamic = "force-dynamic"
+
+const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://boostwebstudio.vercel.app"
 
 export default async function sitemap() {
   const posts = await getAllPosts()

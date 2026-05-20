@@ -13,7 +13,7 @@ export const revalidate = 0
 export async function generateMetadata({ params }: { params: { slug: string } }) {
   const post = await getPostBySlug(params.slug)
   if (!post) return { title: "글을 찾을 수 없습니다" }
-  const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://bstweb-50.vercel.app"
+  const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://boostwebstudio.vercel.app"
   const url = `${BASE_URL}/blog/${params.slug}`
   return {
     title: post.title,
