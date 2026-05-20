@@ -58,54 +58,52 @@ function resolveCategory(specCategory: string, list: string[]): string {
   return specCategory
 }
 
-async function generatePost(spec: PostSpec) {
-  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
-  const MODEL = "gemini-2.5-flash"
-  const MAX_RETRIES = 3
-
-  let lastError: Error | null = null
-  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-    try {
-      return await generateWithModel(genAI, MODEL, spec)
-    } catch (e) {
-      lastError = e as Error
-      const msg = lastError.message ?? ""
-      // 503 과부하 → 잠시 후 재시도
-      if (
-        msg.includes("503") ||
-        msg.includes("overloaded") ||
-        msg.includes("high demand") ||
-        msg.includes("Service Unavailable")
-      ) {
-        if (attempt < MAX_RETRIES) {
-          await new Promise(r => setTimeout(r, attempt * 5000)) // 5초, 10초 대기
-          continue
-        }
-      }
-      throw e
-    }
-  }
-  throw lastError
+function is503(msg: string) {
+  return (
+    msg.includes("503") ||
+    msg.includes("overloaded") ||
+    msg.includes("high demand") ||
+    msg.includes("Service Unavailable")
+  )
 }
 
-async function generateWithModel(genAI: GoogleGenerativeAI, modelName: string, spec: PostSpec) {
-  const model = genAI.getGenerativeModel({ model: modelName })
+async function generatePost(spec: PostSpec) {
+  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
 
-  const today = new Date().toLocaleDateString("ko-KR", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  })
+  // 1차: gemini-2.5-flash (v1beta) — 2회 시도
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      return await generateWithModel(genAI, "gemini-2.5-flash", spec)
+    } catch (e) {
+      const msg = (e as Error).message ?? ""
+      if (is503(msg) && attempt < 2) {
+        await new Promise(r => setTimeout(r, 8000))
+        continue
+      }
+      if (!is503(msg)) throw e
+    }
+  }
 
+  // 2차 폴백: gemini-1.5-flash via 안정 v1 API
+  try {
+    const model = genAI.getGenerativeModel(
+      { model: "gemini-1.5-flash" },
+      { apiVersion: "v1" } as never
+    )
+    const result = await model.generateContent(buildPrompt(spec))
+    return parseResponse(result.response.text().trim())
+  } catch (e) {
+    throw new Error(`모든 모델 실패: ${(e as Error).message}`)
+  }
+}
+
+function buildPrompt(spec: PostSpec): string {
+  const today = new Date().toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" })
   const categoryGuide = spec.topic === "AI"
-    ? `카테고리: AI / 기술
-주제 범위: AI 에이전트, 생성형 AI, ChatGPT·Gemini·Claude 활용법, 업무 자동화, AI 툴 비교, 코딩 AI, 이미지 생성 AI 등
-타겟 독자: AI에 관심 있는 일반인 ~ 실무자`
-    : `카테고리: 재테크 / 금융
-주제 범위: 주식·ETF 투자, 적금·예금 전략, 절세, 부업·수익화, 가계부, 청약·부동산 기초, 연금
-타겟 독자: 사회초년생 ~ 30~40대 직장인`
+    ? `카테고리: AI / 기술\n주제 범위: AI 에이전트, 생성형 AI, ChatGPT·Gemini·Claude 활용법, 업무 자동화, AI 툴 비교, 코딩 AI, 이미지 생성 AI 등\n타겟 독자: AI에 관심 있는 일반인 ~ 실무자`
+    : `카테고리: 재테크 / 금융\n주제 범위: 주식·ETF 투자, 적금·예금 전략, 절세, 부업·수익화, 가계부, 청약·부동산 기초, 연금\n타겟 독자: 사회초년생 ~ 30~40대 직장인`
 
-  const prompt = `당신은 구글·네이버 SEO 전문가이자 애드센스 승인 경험이 풍부한 한국어 블로그 작가입니다.
+  return `당신은 구글·네이버 SEO 전문가이자 애드센스 승인 경험이 풍부한 한국어 블로그 작가입니다.
 오늘 날짜: ${today}
 
 ${categoryGuide}
@@ -126,7 +124,6 @@ ${categoryGuide}
    - <ul><li> 리스트로 핵심 정보 시각화
    - <strong>으로 핵심 키워드 강조 (자연스럽게, 과도하지 않게)
 3. FAQ 섹션: <h2>자주 묻는 질문</h2> + <h3>질문</h3><p>답변</p> 형식으로 3개 이상
-   (구글 featured snippet 노출에 유리)
 4. 마무리: 핵심 요약 + 독자 행동 유도 문장
 
 【애드센스 승인 필수 조건】
@@ -147,29 +144,25 @@ ${categoryGuide}
   "imageKeywords": "영어 이미지 검색 키워드",
   "content": "HTML 본문 전체 (h2·h3·p·ul·li·strong·em 활용, FAQ 섹션 포함)"
 }`
+}
 
-  const result = await model.generateContent(prompt)
-  const raw = result.response.text().trim()
-
+function parseResponse(raw: string) {
   const stripped = raw
     .replace(/^```json\s*/i, "")
     .replace(/^```\s*/i, "")
     .replace(/```\s*$/i, "")
     .trim()
-
   const match = stripped.match(/\{[\s\S]*\}/)
   if (!match) throw new Error("Gemini 응답에서 JSON을 찾을 수 없습니다.")
-  const jsonStr = match[0]
-
-  const parsed = JSON.parse(jsonStr) as {
-    title: string
-    excerpt: string
-    tags: string[]
-    imageKeywords: string
-    content: string
+  return JSON.parse(match[0]) as {
+    title: string; excerpt: string; tags: string[]; imageKeywords: string; content: string
   }
+}
 
-  return parsed
+async function generateWithModel(genAI: GoogleGenerativeAI, modelName: string, spec: PostSpec) {
+  const model = genAI.getGenerativeModel({ model: modelName })
+  const result = await model.generateContent(buildPrompt(spec))
+  return parseResponse(result.response.text().trim())
 }
 
 export async function POST(req: Request) {
