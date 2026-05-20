@@ -67,34 +67,47 @@ function is503(msg: string) {
   )
 }
 
-async function generatePost(spec: PostSpec) {
-  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
+/** SDK 우회: Google v1 REST API 직접 호출 (gemini-1.5-flash 안정 버전) */
+async function generateWithV1Fetch(apiKey: string, spec: PostSpec) {
+  const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: buildPrompt(spec) }] }],
+      generationConfig: { temperature: 0.9, maxOutputTokens: 8192 },
+    }),
+  })
+  if (!res.ok) {
+    const errText = await res.text()
+    throw new Error(`gemini-1.5-flash v1 오류 ${res.status}: ${errText}`)
+  }
+  const data = await res.json()
+  const text: string = data.candidates?.[0]?.content?.parts?.[0]?.text
+  if (!text) throw new Error("gemini-1.5-flash 응답에 텍스트가 없습니다.")
+  return parseResponse(text.trim())
+}
 
-  // 1차: gemini-2.5-flash (v1beta) — 2회 시도
-  for (let attempt = 1; attempt <= 2; attempt++) {
+async function generatePost(spec: PostSpec) {
+  const apiKey = process.env.GEMINI_API_KEY!
+  const genAI = new GoogleGenerativeAI(apiKey)
+
+  // 1차: gemini-2.5-flash (v1beta) — 3회 시도
+  for (let attempt = 1; attempt <= 3; attempt++) {
     try {
       return await generateWithModel(genAI, "gemini-2.5-flash", spec)
     } catch (e) {
       const msg = (e as Error).message ?? ""
-      if (is503(msg) && attempt < 2) {
-        await new Promise(r => setTimeout(r, 8000))
+      if ((is503(msg) || msg.includes("429") || msg.includes("Too Many")) && attempt < 3) {
+        await new Promise(r => setTimeout(r, attempt * 7000)) // 7초, 14초
         continue
       }
-      if (!is503(msg)) throw e
+      if (!is503(msg) && !msg.includes("429")) throw e
     }
   }
 
-  // 2차 폴백: gemini-1.5-flash via 안정 v1 API
-  try {
-    const model = genAI.getGenerativeModel(
-      { model: "gemini-1.5-flash" },
-      { apiVersion: "v1" } as never
-    )
-    const result = await model.generateContent(buildPrompt(spec))
-    return parseResponse(result.response.text().trim())
-  } catch (e) {
-    throw new Error(`모든 모델 실패: ${(e as Error).message}`)
-  }
+  // 2차 폴백: gemini-1.5-flash v1 REST API 직접 호출 (SDK 우회)
+  return await generateWithV1Fetch(apiKey, spec)
 }
 
 function buildPrompt(spec: PostSpec): string {
