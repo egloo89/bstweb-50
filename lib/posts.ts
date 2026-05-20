@@ -11,6 +11,7 @@ export interface PostFrontmatter {
   thumbnail?: string
   published: boolean
   views?: number
+  scheduledAt?: string   // ISO string — 예약 발행 시각
 }
 
 export interface Post extends PostFrontmatter {
@@ -29,6 +30,7 @@ export interface CreatePostInput {
   published?: boolean
   content: string
   views?: number
+  scheduledAt?: string   // ISO string — 예약 발행 시각
 }
 
 const POSTS_DIR = path.join(process.cwd(), "posts")
@@ -134,6 +136,22 @@ export async function getAllPosts(includeUnpublished = false): Promise<Post[]> {
     .filter((p): p is Post => p !== null)
 
   const all = [...kvPosts, ...mdxPosts]
+
+  // 예약 발행: scheduledAt 이 현재 시각 이전인 미발행 글을 자동 발행
+  const now = new Date().toISOString()
+  const toPublish = all.filter(p => !p.published && p.scheduledAt && p.scheduledAt <= now)
+  if (toPublish.length > 0 && r) {
+    // fire-and-forget (페이지 렌더 블로킹 없이 Redis 업데이트)
+    void Promise.all(
+      toPublish.map(p => {
+        const updated = { ...p, published: true, scheduledAt: undefined }
+        return r.set(KV_POST(p.slug), updated)
+      })
+    ).catch(console.error)
+    // 반환값에서도 즉시 발행 처리
+    toPublish.forEach(p => { p.published = true; delete p.scheduledAt })
+  }
+
   const filtered = includeUnpublished ? all : all.filter(p => p.published)
   return filtered.sort((a, b) => (a.date < b.date ? 1 : -1))
 }
@@ -179,6 +197,7 @@ export async function createPost(input: CreatePostInput): Promise<Post> {
     published: input.published !== false,
     content: input.content,
     views: input.views ?? 0,
+    ...(input.scheduledAt ? { scheduledAt: input.scheduledAt } : {}),
   }
 
   if (r) {

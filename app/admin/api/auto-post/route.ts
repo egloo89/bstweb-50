@@ -180,7 +180,12 @@ export async function POST(req: Request) {
   }
 
   let type: string = "all"
-  try { const body = await req.json(); type = body.type ?? "all" } catch {}
+  let scheduledAt: string | undefined
+  try {
+    const body = await req.json()
+    type = body.type ?? "all"
+    scheduledAt = body.scheduledAt ?? undefined
+  } catch {}
 
   const categoryList = await readCategoryList()
   const allSpecs = POST_SPECS.map(s => ({ ...s, category: resolveCategory(s.category, categoryList) }))
@@ -207,6 +212,7 @@ export async function POST(req: Request) {
         slugify(generated.title) ||
         `${spec.category.toLowerCase()}-${today}-${Math.random().toString(36).slice(2, 6)}`
 
+      const isScheduled = !!scheduledAt
       const post = await createPost({
         slug,
         title: generated.title,
@@ -215,8 +221,9 @@ export async function POST(req: Request) {
         tags: generated.tags,
         excerpt: generated.excerpt,
         thumbnail,
-        published: true,
+        published: !isScheduled,
         content: generated.content,
+        ...(isScheduled ? { scheduledAt } : {}),
       })
 
       results.push({ category: spec.category, title: post.title, slug: post.slug })

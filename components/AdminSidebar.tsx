@@ -6,7 +6,7 @@ import { useState, useRef, useEffect } from "react"
 import {
   Folder, Star, PlusCircle, LogOut, ExternalLink,
   Settings, Check, X, ChevronUp, ChevronDown, Trash2, FolderPlus, Pencil,
-  Sparkles, Loader2,
+  Sparkles, Loader2, Clock, Zap,
 } from "lucide-react"
 
 interface CategoryInfo {
@@ -41,24 +41,44 @@ export function AdminSidebar({ categories: initialCategories, allCount, selected
   const [saving, setSaving] = useState(false)
   const [autoPosting, setAutoPosting] = useState<"ai" | "finance" | null>(null)
   const [autoResult, setAutoResult] = useState<string | null>(null)
+  // 발행 방식 선택 모달
+  const [postModal, setPostModal] = useState<{ type: "ai" | "finance" } | null>(null)
+  const [scheduledAt, setScheduledAt] = useState("")
   const newInputRef = useRef<HTMLInputElement>(null)
 
-  async function handleAutoPost(type: "ai" | "finance") {
-    const label = type === "ai" ? "AI 트렌드" : "재테크"
-    if (!confirm(`AI가 ${label} 포스트 1개를 자동 작성합니다.\n약 30~60초 소요됩니다. 진행할까요?`)) return
+  // 현재 시각을 datetime-local 입력값 형식으로 반환
+  function getNowLocal() {
+    const d = new Date()
+    d.setMinutes(d.getMinutes() + 10) // 기본값: 10분 후
+    const pad = (n: number) => String(n).padStart(2, "0")
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+  }
+
+  function openPostModal(type: "ai" | "finance") {
+    setScheduledAt(getNowLocal())
+    setAutoResult(null)
+    setPostModal({ type })
+  }
+
+  async function handleAutoPost(type: "ai" | "finance", scheduled?: string) {
+    setPostModal(null)
     setAutoPosting(type)
     setAutoResult(null)
     try {
+      const body: Record<string, string> = { type }
+      if (scheduled) body.scheduledAt = new Date(scheduled).toISOString()
       const res = await fetch("/admin/api/auto-post", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type }),
+        body: JSON.stringify(body),
       })
       const data = await res.json()
       if (!data.ok && data.error) {
         setAutoResult(`❌ 오류: ${data.error}`)
       } else {
-        const ok = data.results?.map((r: { title: string; category: string }) => `✅ [${r.category}] ${r.title}`).join("\n") || ""
+        const ok = data.results?.map((r: { title: string; category: string }) =>
+          scheduled ? `🕐 [${r.category}] 예약 완료: ${r.title}` : `✅ [${r.category}] ${r.title}`
+        ).join("\n") || ""
         const fail = data.errors?.map((e: { category: string; error: string }) => `❌ [${e.category}] ${e.error}`).join("\n") || ""
         setAutoResult([ok, fail].filter(Boolean).join("\n"))
         router.refresh()
@@ -177,6 +197,7 @@ export function AdminSidebar({ categories: initialCategories, allCount, selected
   }
 
   return (
+    <>
     <aside className="w-[210px] md:w-[230px] shrink-0 border-r border-gray-100 bg-[#f8f9fc] flex flex-col">
       {/* 새 글 추가 + 자동 포스팅 */}
       <div className="p-3 border-b border-gray-100 space-y-2">
@@ -189,7 +210,7 @@ export function AdminSidebar({ categories: initialCategories, allCount, selected
         </Link>
         <div className="flex gap-1.5">
           <button
-            onClick={() => handleAutoPost("ai")}
+            onClick={() => openPostModal("ai")}
             disabled={autoPosting !== null}
             className="flex items-center justify-center gap-1.5 flex-1 py-2 rounded-lg bg-gradient-to-r from-violet-500 to-purple-600 text-white text-xs font-medium hover:from-violet-600 hover:to-purple-700 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
           >
@@ -200,7 +221,7 @@ export function AdminSidebar({ categories: initialCategories, allCount, selected
             )}
           </button>
           <button
-            onClick={() => handleAutoPost("finance")}
+            onClick={() => openPostModal("finance")}
             disabled={autoPosting !== null}
             className="flex items-center justify-center gap-1.5 flex-1 py-2 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-xs font-medium hover:from-emerald-600 hover:to-teal-700 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
           >
@@ -369,5 +390,81 @@ export function AdminSidebar({ categories: initialCategories, allCount, selected
         </button>
       </div>
     </aside>
+
+    {/* ── 발행 방식 선택 모달 ── */}
+    {postModal && (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+          {/* 모달 헤더 */}
+          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+            <div className="flex items-center gap-2">
+              <Sparkles className={`h-4 w-4 ${postModal.type === "ai" ? "text-violet-500" : "text-emerald-500"}`} />
+              <span className="font-semibold text-sm text-gray-800">
+                {postModal.type === "ai" ? "AI 포스팅" : "재테크 포스팅"} 발행 방식
+              </span>
+            </div>
+            <button
+              onClick={() => setPostModal(null)}
+              className="p-1 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          <div className="p-5 space-y-3">
+            {/* 즉시 발행 */}
+            <button
+              onClick={() => handleAutoPost(postModal.type)}
+              className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl border-2 border-[#4361ee] bg-[#4361ee]/5 hover:bg-[#4361ee]/10 transition-colors group"
+            >
+              <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-[#4361ee] text-white shrink-0">
+                <Zap className="h-4 w-4" />
+              </div>
+              <div className="text-left">
+                <p className="text-sm font-semibold text-[#4361ee]">즉시 발행</p>
+                <p className="text-xs text-gray-500">AI가 작성 후 바로 게시됩니다</p>
+              </div>
+            </button>
+
+            {/* 예약 발행 */}
+            <div className="rounded-xl border-2 border-gray-200 hover:border-blue-300 transition-colors overflow-hidden">
+              <div className="flex items-center gap-3 px-4 py-3 bg-gray-50">
+                <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-blue-500 text-white shrink-0">
+                  <Clock className="h-4 w-4" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-gray-800">예약 발행</p>
+                  <p className="text-xs text-gray-500">지정한 날짜·시간에 자동 게시</p>
+                </div>
+              </div>
+              <div className="px-4 pb-4 pt-3 space-y-3">
+                <input
+                  type="datetime-local"
+                  value={scheduledAt}
+                  onChange={e => setScheduledAt(e.target.value)}
+                  min={new Date().toISOString().slice(0, 16)}
+                  className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100 bg-white"
+                />
+                <button
+                  onClick={() => {
+                    if (!scheduledAt) return
+                    handleAutoPost(postModal.type, scheduledAt)
+                  }}
+                  disabled={!scheduledAt}
+                  className="w-full py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  예약 설정하기
+                </button>
+              </div>
+            </div>
+
+            <p className="text-[11px] text-gray-400 text-center pt-1">
+              AI 작성은 즉시 시작되며, 예약 시각에 자동으로 공개됩니다
+            </p>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   )
 }

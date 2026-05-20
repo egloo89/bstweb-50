@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
-import { Pencil, Trash2, ChevronUp, ChevronDown, Eye, EyeOff } from "lucide-react"
+import { Pencil, Trash2, ChevronUp, ChevronDown, Eye, EyeOff, Clock } from "lucide-react"
 import type { Post } from "@/lib/posts"
 
 interface Props {
@@ -26,6 +26,12 @@ function formatDate(dateStr: string) {
   const d = new Date(dateStr)
   if (isNaN(d.getTime())) return dateStr
   return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}.`
+}
+
+function formatScheduled(iso: string) {
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return iso
+  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`
 }
 
 export function AdminPostTable({ posts, selectedCategory }: Props) {
@@ -135,6 +141,10 @@ export function AdminPostTable({ posts, selectedCategory }: Props) {
                       <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 font-medium">
                         <Eye className="h-3 w-3" /> 발행
                       </span>
+                    ) : post.scheduledAt ? (
+                      <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 font-medium" title={formatScheduled(post.scheduledAt)}>
+                        <Clock className="h-3 w-3" /> 예약
+                      </span>
                     ) : (
                       <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 font-medium">
                         <EyeOff className="h-3 w-3" /> 초안
@@ -144,7 +154,11 @@ export function AdminPostTable({ posts, selectedCategory }: Props) {
 
                   {/* 날짜 */}
                   <td className="py-3 pr-3 text-xs text-gray-400 text-right align-middle hidden md:table-cell">
-                    {formatDate(post.date)}
+                    {post.scheduledAt ? (
+                      <span className="text-blue-400">{formatScheduled(post.scheduledAt)}</span>
+                    ) : (
+                      formatDate(post.date)
+                    )}
                   </td>
 
                   {/* 관리 버튼 */}
