@@ -60,7 +60,7 @@ function resolveCategory(specCategory: string, list: string[]): string {
 
 async function generatePost(spec: PostSpec) {
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
-  const MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
+  const MODELS = ["gemini-2.5-flash", "gemini-1.5-flash", "gemini-1.5-flash-8b"]
 
   let lastError: Error | null = null
   for (const modelName of MODELS) {
@@ -69,11 +69,15 @@ async function generatePost(spec: PostSpec) {
     } catch (e) {
       lastError = e as Error
       const msg = lastError.message ?? ""
+      // 일시적 과부하(503) 또는 해당 모델 사용 불가(404) → 다음 모델로 폴백
       if (
         msg.includes("503") ||
+        msg.includes("404") ||
         msg.includes("overloaded") ||
         msg.includes("high demand") ||
-        msg.includes("Service Unavailable")
+        msg.includes("Service Unavailable") ||
+        msg.includes("no longer available") ||
+        msg.includes("Not Found")
       ) {
         continue
       }
