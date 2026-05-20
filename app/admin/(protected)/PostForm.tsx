@@ -79,7 +79,7 @@ interface PostFormProps {
 const EMPTY: PostFormValues = {
   slug: "",
   title: "",
-  date: new Date().toISOString().split("T")[0],
+  date: new Date().toISOString(),
   category: "",
   tags: "",
   excerpt: "",

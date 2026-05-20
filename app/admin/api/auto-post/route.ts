@@ -218,7 +218,7 @@ export async function POST(req: Request) {
       const imageSeed = `${spec.category}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
       const thumbnail = await fetchImage(generated.imageKeywords || spec.topic, imageSeed)
 
-      const today = new Date().toISOString().split("T")[0]
+      const today = new Date().toISOString() // 날짜+시간 전체 저장
       const slug =
         slugify(generated.title) ||
         `${spec.category.toLowerCase()}-${today}-${Math.random().toString(36).slice(2, 6)}`

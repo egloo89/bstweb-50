@@ -24,12 +24,20 @@ const CATEGORY_COLORS: Record<string, string> = {
 function formatDate(dateStr: string) {
   const d = new Date(dateStr)
   if (isNaN(d.getTime())) return dateStr
+  const pad = (n: number) => String(n).padStart(2, "0")
   const now = new Date()
   const isToday = d.toDateString() === now.toDateString()
+  const isThisYear = d.getFullYear() === now.getFullYear()
+  const hasTime = dateStr.includes("T") || dateStr.includes(" ")
+  const timePart = hasTime ? ` ${pad(d.getHours())}:${pad(d.getMinutes())}` : ""
+
   if (isToday) {
-    return d.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", hour12: false })
+    return `오늘 ${pad(d.getHours())}:${pad(d.getMinutes())}`
   }
-  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}.`
+  if (isThisYear) {
+    return `${pad(d.getMonth() + 1)}.${pad(d.getDate())}.${timePart}`
+  }
+  return `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())}.${timePart}`
 }
 
 export function PostTable({ posts, allCount, label = "전체글보기", currentPage = 1, totalPages = 1, basePath = "/blog" }: Props) {
@@ -83,7 +91,7 @@ export function PostTable({ posts, allCount, label = "전체글보기", currentP
                     )}
                   </td>
                   {/* 날짜 */}
-                  <td className="py-3 md:py-4 pr-3 text-gray-400 text-xs whitespace-nowrap w-20 text-right align-middle">
+                  <td className="py-3 md:py-4 pr-3 text-gray-400 text-xs whitespace-nowrap w-28 text-right align-middle">
                     {formatDate(post.date)}
                   </td>
                   {/* 조회수: 모바일에서 숨김 */}
