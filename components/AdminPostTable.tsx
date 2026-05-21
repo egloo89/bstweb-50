@@ -132,7 +132,7 @@ export function AdminPostTable({ posts, selectedCategory }: Props) {
                         <Eye className="h-3 w-3" /> 발행
                       </span>
                     ) : post.scheduledAt ? (
-                      <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 font-medium" title={formatScheduled(post.scheduledAt)}>
+                      <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 font-medium" title={formatDate(post.scheduledAt)}>
                         <Clock className="h-3 w-3" /> 예약
                       </span>
                     ) : (
