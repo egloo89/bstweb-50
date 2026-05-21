@@ -7,6 +7,7 @@ import { CategorySidebar } from "@/components/CategorySidebar"
 import { BlogHeader } from "@/components/BlogHeader"
 import { MDXContent } from "@/components/MDXContent"
 import { SiteFooter } from "@/components/SiteFooter"
+import { ViewTracker } from "@/components/ViewTracker"
 
 export const dynamic = "force-dynamic"
 export const revalidate = 0
@@ -138,6 +139,8 @@ export default async function PostPage({ params }: { params: { slug: string } })
               }),
             }}
           />
+
+          <ViewTracker slug={post.slug} />
 
           <article>
             {isHTML

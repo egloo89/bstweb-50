@@ -180,6 +180,14 @@ export async function getPostBySlug(slug: string): Promise<Post | null> {
   return null
 }
 
+export async function incrementViews(slug: string): Promise<void> {
+  const r = await getRedis()
+  if (!r) return
+  const post = await kvGetPost(r, slug)
+  if (!post) return
+  await r.set(KV_POST(slug), { ...post, views: (post.views ?? 0) + 1 })
+}
+
 export async function createPost(input: CreatePostInput): Promise<Post> {
   const r = await getRedis()
   // Check duplicate slug
