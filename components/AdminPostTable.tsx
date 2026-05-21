@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { Pencil, Trash2, ChevronUp, ChevronDown, Eye, EyeOff, Clock } from "lucide-react"
 import type { Post } from "@/lib/posts"
+import { formatDate } from "@/lib/formatDate"
 
 interface Props {
   posts: Post[]
@@ -22,23 +23,6 @@ const CATEGORY_COLORS: Record<string, string> = {
   기타: "bg-gray-100 text-gray-600",
 }
 
-function formatDate(dateStr: string) {
-  const d = new Date(dateStr)
-  if (isNaN(d.getTime())) return dateStr
-  const pad = (n: number) => String(n).padStart(2, "0")
-  const now = new Date()
-  const isToday = d.toDateString() === now.toDateString()
-  const hasTime = dateStr.includes("T") || dateStr.includes(" ")
-  const timePart = hasTime ? ` ${pad(d.getHours())}:${pad(d.getMinutes())}` : ""
-  if (isToday) return `오늘 ${pad(d.getHours())}:${pad(d.getMinutes())}`
-  return `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())}.${timePart}`
-}
-
-function formatScheduled(iso: string) {
-  const d = new Date(iso)
-  if (isNaN(d.getTime())) return iso
-  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`
-}
 
 export function AdminPostTable({ posts, selectedCategory }: Props) {
   const router = useRouter()
@@ -158,12 +142,12 @@ export function AdminPostTable({ posts, selectedCategory }: Props) {
                     )}
                   </td>
 
-                  {/* 날짜 */}
-                  <td className="py-3 pr-3 text-xs text-gray-400 text-right align-middle hidden md:table-cell">
+                  {/* 날짜: 예약글은 예약 시각, 발행글은 발행 시각 */}
+                  <td className="py-3 pr-3 text-xs text-right align-middle hidden md:table-cell">
                     {post.scheduledAt ? (
-                      <span className="text-blue-400">{formatScheduled(post.scheduledAt)}</span>
+                      <span className="text-blue-400">{formatDate(post.scheduledAt)}</span>
                     ) : (
-                      formatDate(post.date)
+                      <span className="text-gray-400">{formatDate(post.date)}</span>
                     )}
                   </td>
 

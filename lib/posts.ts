@@ -144,12 +144,13 @@ export async function getAllPosts(includeUnpublished = false): Promise<Post[]> {
     // fire-and-forget (페이지 렌더 블로킹 없이 Redis 업데이트)
     void Promise.all(
       toPublish.map(p => {
-        const updated = { ...p, published: true, scheduledAt: undefined }
+        // date를 scheduledAt으로 갱신 → 발행 시각이 표시되도록
+        const updated = { ...p, published: true, date: p.scheduledAt!, scheduledAt: undefined }
         return r.set(KV_POST(p.slug), updated)
       })
     ).catch(console.error)
-    // 반환값에서도 즉시 발행 처리
-    toPublish.forEach(p => { p.published = true; delete p.scheduledAt })
+    // 반환값에서도 즉시 반영
+    toPublish.forEach(p => { p.published = true; p.date = p.scheduledAt!; delete p.scheduledAt })
   }
 
   const filtered = includeUnpublished ? all : all.filter(p => p.published)

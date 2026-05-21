@@ -1,5 +1,6 @@
 import Link from "next/link"
 import type { Post } from "@/lib/posts"
+import { formatDate } from "@/lib/formatDate"
 
 interface Props {
   posts: Post[]
@@ -21,24 +22,6 @@ const CATEGORY_COLORS: Record<string, string> = {
   기타: "bg-gray-100 text-gray-600",
 }
 
-function formatDate(dateStr: string) {
-  const d = new Date(dateStr)
-  if (isNaN(d.getTime())) return dateStr
-  const pad = (n: number) => String(n).padStart(2, "0")
-  const now = new Date()
-  const isToday = d.toDateString() === now.toDateString()
-  const isThisYear = d.getFullYear() === now.getFullYear()
-  const hasTime = dateStr.includes("T") || dateStr.includes(" ")
-  const timePart = hasTime ? ` ${pad(d.getHours())}:${pad(d.getMinutes())}` : ""
-
-  if (isToday) {
-    return `오늘 ${pad(d.getHours())}:${pad(d.getMinutes())}`
-  }
-  if (isThisYear) {
-    return `${pad(d.getMonth() + 1)}.${pad(d.getDate())}.${timePart}`
-  }
-  return `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())}.${timePart}`
-}
 
 export function PostTable({ posts, allCount, label = "전체글보기", currentPage = 1, totalPages = 1, basePath = "/blog" }: Props) {
   return (
