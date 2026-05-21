@@ -181,11 +181,22 @@ export async function getPostBySlug(slug: string): Promise<Post | null> {
 }
 
 export async function incrementViews(slug: string): Promise<void> {
-  const r = await getRedis()
-  if (!r) return
-  const post = await kvGetPost(r, slug)
-  if (!post) return
-  await r.set(KV_POST(slug), { ...post, views: (post.views ?? 0) + 1 })
+  try {
+    const r = await getRedis()
+    if (!r) return
+    // Redis에 없는 경우(MDX 포스트 등)도 처리하기 위해 getPostBySlug 사용
+    const post = await getPostBySlug(slug)
+    if (!post) return
+    const updated = { ...post, views: (post.views ?? 0) + 1 }
+    await r.set(KV_POST(slug), updated)
+    // MDX 포스트가 Redis slugs 목록에 없는 경우 추가
+    const slugs = await kvGetSlugs(r)
+    if (!slugs.includes(slug)) {
+      await r.set(KV_SLUGS_KEY, [...slugs, slug])
+    }
+  } catch (e) {
+    console.error("[posts] incrementViews error:", e)
+  }
 }
 
 export async function createPost(input: CreatePostInput): Promise<Post> {

@@ -8,6 +8,7 @@ import { BlogHeader } from "@/components/BlogHeader"
 import { MDXContent } from "@/components/MDXContent"
 import { SiteFooter } from "@/components/SiteFooter"
 import { ViewTracker } from "@/components/ViewTracker"
+import { CommentSection } from "@/components/CommentSection"
 
 export const dynamic = "force-dynamic"
 export const revalidate = 0
@@ -156,6 +157,8 @@ export default async function PostPage({ params }: { params: { slug: string } })
               ))}
             </div>
           )}
+
+          <CommentSection slug={post.slug} />
 
           <div className="mt-8 border-t border-gray-100 pt-5 grid grid-cols-2 gap-3 text-sm">
             {prevPost ? (
