@@ -3,6 +3,7 @@ export interface Comment {
   nickname: string
   content: string
   createdAt: string
+  parentId?: string   // 대댓글이면 부모 댓글 id
 }
 
 const KV_COMMENTS = (slug: string) => `bstweb_comments:${slug}`
@@ -33,7 +34,8 @@ export async function getComments(slug: string): Promise<Comment[]> {
 export async function addComment(
   slug: string,
   nickname: string,
-  content: string
+  content: string,
+  parentId?: string
 ): Promise<Comment> {
   const r = await getRedis()
   if (!r) throw new Error("저장소에 연결할 수 없습니다.")
@@ -43,6 +45,7 @@ export async function addComment(
     nickname: nickname.trim().slice(0, 20),
     content: content.trim().slice(0, 1000),
     createdAt: new Date().toISOString(),
+    ...(parentId ? { parentId } : {}),
   }
 
   const existing = await getComments(slug)
@@ -54,5 +57,8 @@ export async function deleteComment(slug: string, commentId: string): Promise<vo
   const r = await getRedis()
   if (!r) return
   const existing = await getComments(slug)
-  await r.set(KV_COMMENTS(slug), existing.filter(c => c.id !== commentId))
+  // 댓글 삭제 시 해당 댓글의 대댓글도 함께 삭제
+  const toDelete = new Set<string>([commentId])
+  existing.forEach(c => { if (c.parentId && toDelete.has(c.parentId)) toDelete.add(c.id) })
+  await r.set(KV_COMMENTS(slug), existing.filter(c => !toDelete.has(c.id)))
 }
