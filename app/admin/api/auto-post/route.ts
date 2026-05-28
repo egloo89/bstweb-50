@@ -227,19 +227,65 @@ ${audienceGuide}
   "tags": ["태그1", "태그2", "태그3", "태그4", "태그5"],
   "imageKeywords": "영어 이미지 검색 키워드",
   "content": "HTML 본문 전체 (h2·h3·p·ul·li·strong·em 활용, FAQ 섹션 포함)"
-}`
 }
 
-function parseResponse(raw: string) {
+⚠️ JSON 출력 규칙:
+- content 필드는 반드시 마지막에 위치
+- HTML 태그 속성(href, src 등)은 큰따옴표 대신 작은따옴표 사용 (예: <a href='url'>)
+- content 값 안에 큰따옴표(") 사용 금지 — &quot; 또는 작은따옴표로 대체
+- 줄바꿈 없이 content 전체를 한 줄 문자열로 출력`
+}
+
+type ParsedPost = { title: string; excerpt: string; tags: string[]; imageKeywords: string; content: string }
+
+function parseResponse(raw: string): ParsedPost {
+  // 마크다운 코드블록 제거
   const stripped = raw
     .replace(/^```json\s*/i, "")
     .replace(/^```\s*/i, "")
     .replace(/```\s*$/i, "")
     .trim()
-  const match = stripped.match(/\{[\s\S]*\}/)
-  if (!match) throw new Error("Gemini 응답에서 JSON을 찾을 수 없습니다.")
-  return JSON.parse(match[0]) as {
-    title: string; excerpt: string; tags: string[]; imageKeywords: string; content: string
+
+  // 1) 표준 JSON.parse 시도 (정상 케이스)
+  try {
+    const match = stripped.match(/\{[\s\S]*\}/)
+    if (match) return JSON.parse(match[0]) as ParsedPost
+  } catch { /* 아래 fallback으로 */ }
+
+  // 2) 강건한 폴백: content 필드는 항상 마지막이므로
+  //    앞쪽 단순 필드는 regex로 추출, content는 수동 슬라이싱으로 처리
+  //    (HTML 속성 큰따옴표로 인한 JSON parse 오류 방지)
+  const markerRe = /"content"\s*:\s*"/
+  const markerMatch = markerRe.exec(stripped)
+  if (!markerMatch) throw new Error("Gemini 응답에서 JSON을 파싱할 수 없습니다.")
+
+  const contentStart = markerMatch.index + markerMatch[0].length
+
+  // JSON 끝 부분: ...content값..." \n}  — 마지막 } 앞의 " 위치를 찾음
+  const lastBrace = stripped.lastIndexOf("}")
+  let contentEnd = lastBrace - 1
+  while (contentEnd > contentStart && stripped[contentEnd] !== '"') contentEnd--
+  if (contentEnd <= contentStart) throw new Error("Gemini content 필드 끝을 찾을 수 없습니다.")
+
+  const content = stripped.slice(contentStart, contentEnd)
+
+  // content 이전 부분에서 나머지 필드 추출
+  const head = stripped.slice(0, markerMatch.index)
+  const get = (re: RegExp) => {
+    const m = re.exec(head)
+    return m ? m[1].replace(/\\"/g, '"').replace(/\\n/g, "\n") : ""
+  }
+
+  const tagsMatch = /"tags"\s*:\s*(\[[^\]]*\])/.exec(head)
+  let tags: string[] = []
+  try { if (tagsMatch) tags = JSON.parse(tagsMatch[1]) } catch {}
+
+  return {
+    title: get(/"title"\s*:\s*"((?:[^"\\]|\\.)*)"/),
+    excerpt: get(/"excerpt"\s*:\s*"((?:[^"\\]|\\.)*)"/),
+    tags,
+    imageKeywords: get(/"imageKeywords"\s*:\s*"((?:[^"\\]|\\.)*)"/),
+    content,
   }
 }
 
