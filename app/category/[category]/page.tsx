@@ -2,6 +2,7 @@ import { notFound } from "next/navigation"
 import { getAllPosts } from "@/lib/posts"
 import { getCategories, getPostsByCategory } from "@/lib/categories"
 import { BlogHeader } from "@/components/BlogHeader"
+import { SiteFooter } from "@/components/SiteFooter"
 import { CategorySidebar } from "@/components/CategorySidebar"
 
 export const dynamic = "force-dynamic"
@@ -39,11 +40,11 @@ export default async function CategoryPage({
   const posts = catPosts.slice(start, start + PAGE_SIZE)
 
   return (
-    <div className="blog-container">
+    <div className="blog-container flex flex-col">
       <BlogHeader />
       <FeaturedPosts posts={catPosts.length > 0 ? catPosts : allPosts} />
-      <div className="flex" style={{ minHeight: 500 }}>
-        <div className="hidden md:block">
+      <div className="flex flex-1" style={{ minHeight: 500 }}>
+        <div className="hidden md:flex">
           <CategorySidebar
             categories={categories}
             totalCount={allPosts.length}
@@ -59,6 +60,7 @@ export default async function CategoryPage({
           basePath={`/category/${params.category}`}
         />
       </div>
+      <SiteFooter />
     </div>
   )
 }

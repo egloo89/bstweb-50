@@ -30,6 +30,7 @@ export async function PUT(req: Request, { params }: { params: { slug: string } }
       thumbnail: body.thumbnail || "",
       published: body.published !== false,
       content: body.content || "",
+      ...(body.scheduledAt ? { scheduledAt: body.scheduledAt } : {}),
     })
     revalidatePath("/", "layout")
     return NextResponse.json({ ok: true, post: updated })

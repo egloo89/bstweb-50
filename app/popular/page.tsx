@@ -1,6 +1,7 @@
 import { getAllPosts } from "@/lib/posts"
 import { getCategories } from "@/lib/categories"
 import { BlogHeader } from "@/components/BlogHeader"
+import { SiteFooter } from "@/components/SiteFooter"
 import { CategorySidebar } from "@/components/CategorySidebar"
 import { FeaturedPosts } from "@/components/FeaturedPosts"
 import { PostTable } from "@/components/PostTable"
@@ -22,11 +23,11 @@ export default async function PopularPage() {
     .slice(0, 15)
 
   return (
-    <div className="blog-container">
+    <div className="blog-container flex flex-col">
       <BlogHeader />
       <FeaturedPosts posts={posts} />
-      <div className="flex" style={{ minHeight: 500 }}>
-        <div className="hidden md:block">
+      <div className="flex flex-1" style={{ minHeight: 500 }}>
+        <div className="hidden md:flex">
           <CategorySidebar categories={categories} totalCount={allPosts.length} />
         </div>
         <PostTable
@@ -35,6 +36,7 @@ export default async function PopularPage() {
           label="인기글"
         />
       </div>
+      <SiteFooter />
     </div>
   )
 }

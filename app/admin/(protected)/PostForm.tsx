@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import { Save, X, Upload, Loader2 } from "lucide-react"
+import { Save, X, Upload, Loader2, Zap, Clock, EyeOff } from "lucide-react"
 import Link from "next/link"
 import dynamic from "next/dynamic"
 import { slugify } from "@/lib/utils"
@@ -50,6 +50,24 @@ export interface PostFormValues {
   thumbnail: string
   published: boolean
   content: string
+  scheduledAt?: string
+}
+
+type PublishMode = "immediate" | "scheduled" | "draft"
+
+function getInitialPublishMode(initial?: Partial<PostFormValues>): PublishMode {
+  if (initial?.scheduledAt) return "scheduled"
+  if (initial?.published === false) return "draft"
+  return "immediate"
+}
+
+function getDefaultScheduledAt(initial?: Partial<PostFormValues>): string {
+  if (initial?.scheduledAt) return initial.scheduledAt.slice(0, 16)
+  const d = new Date()
+  d.setDate(d.getDate() + 1)
+  d.setHours(9, 0, 0, 0)
+  const pad = (n: number) => String(n).padStart(2, "0")
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T09:00`
 }
 
 interface PostFormProps {
@@ -61,7 +79,7 @@ interface PostFormProps {
 const EMPTY: PostFormValues = {
   slug: "",
   title: "",
-  date: new Date().toISOString().split("T")[0],
+  date: new Date().toISOString(),
   category: "",
   tags: "",
   excerpt: "",
@@ -80,6 +98,8 @@ export function PostForm({ initial, mode, originalSlug }: PostFormProps) {
   const [slugTouched, setSlugTouched] = useState(mode === "edit")
   const [categories, setCategories] = useState<string[]>([])
   const [htmlMode, setHtmlMode] = useState(false)
+  const [publishMode, setPublishMode] = useState<PublishMode>(() => getInitialPublishMode(initial))
+  const [scheduledDateTime, setScheduledDateTime] = useState(() => getDefaultScheduledAt(initial))
 
   // thumbnail upload
   const thumbFileRef = useRef<HTMLInputElement>(null)
@@ -138,7 +158,7 @@ export function PostForm({ initial, mode, originalSlug }: PostFormProps) {
       return
     }
     setLoading(true)
-    const payload = {
+    const payload: Record<string, unknown> = {
       slug: values.slug.trim(),
       title: values.title.trim(),
       date: values.date,
@@ -146,8 +166,11 @@ export function PostForm({ initial, mode, originalSlug }: PostFormProps) {
       tags: values.tags.split(",").map(t => t.trim()).filter(Boolean),
       excerpt: values.excerpt,
       thumbnail: values.thumbnail,
-      published: values.published,
+      published: publishMode === "immediate",
       content: values.content,
+    }
+    if (publishMode === "scheduled" && scheduledDateTime) {
+      payload.scheduledAt = new Date(scheduledDateTime).toISOString()
     }
     try {
       const url = mode === "create"
@@ -182,9 +205,19 @@ export function PostForm({ initial, mode, originalSlug }: PostFormProps) {
           </h1>
           <div className="flex items-center gap-2">
             <button type="submit" disabled={loading}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-[#4361ee] px-4 py-1.5 text-sm font-medium text-white hover:bg-[#3451d1] disabled:opacity-60 transition-colors">
-              {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-              {loading ? "저장 중..." : "저장"}
+              className={`inline-flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-sm font-medium text-white disabled:opacity-60 transition-colors ${
+                publishMode === "scheduled" ? "bg-blue-500 hover:bg-blue-600"
+                : publishMode === "draft" ? "bg-amber-500 hover:bg-amber-600"
+                : "bg-[#4361ee] hover:bg-[#3451d1]"
+              }`}>
+              {loading
+                ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> 저장 중...</>
+                : publishMode === "scheduled"
+                  ? <><Clock className="h-3.5 w-3.5" /> 예약 저장</>
+                  : publishMode === "draft"
+                    ? <><EyeOff className="h-3.5 w-3.5" /> 초안 저장</>
+                    : <><Save className="h-3.5 w-3.5" /> 발행</>
+              }
             </button>
             <Link href="/admin"
               className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-gray-200 text-gray-400 hover:text-gray-600 hover:border-gray-300 transition-colors">
@@ -252,36 +285,84 @@ export function PostForm({ initial, mode, originalSlug }: PostFormProps) {
             <p className="mt-1 text-[11px] text-gray-400">검색 게시글 상세에 표시됩니다. 최대 20개, 태그당 40자.</p>
           </div>
 
-          {/* 카테고리 + 게시글 유형 */}
-          <div className="flex gap-4">
-            <div className="flex-1">
-              <label className="block text-xs font-semibold text-[#4361ee] mb-1.5">카테고리 *</label>
-              <div className="relative">
-                <select
-                  value={values.category}
-                  onChange={e => set("category", e.target.value)}
-                  className={`${inputCls} pr-8 appearance-none`}>
-                  {categories.length === 0
-                    ? <option value="">불러오는 중...</option>
-                    : categories.map(c => <option key={c} value={c}>{c}</option>)
-                  }
-                </select>
-                <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs">▾</span>
-              </div>
+          {/* 카테고리 */}
+          <div>
+            <label className="block text-xs font-semibold text-[#4361ee] mb-1.5">카테고리 *</label>
+            <div className="relative">
+              <select
+                value={values.category}
+                onChange={e => set("category", e.target.value)}
+                className={`${inputCls} pr-8 appearance-none`}>
+                {categories.length === 0
+                  ? <option value="">불러오는 중...</option>
+                  : categories.map(c => <option key={c} value={c}>{c}</option>)
+                }
+              </select>
+              <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs">▾</span>
             </div>
-            <div className="flex-1">
-              <label className="block text-xs font-semibold text-[#4361ee] mb-1.5">게시글 유형</label>
-              <div className="relative">
-                <select
-                  value={values.published ? "public" : "private"}
-                  onChange={e => set("published", e.target.value === "public")}
-                  className={`${inputCls} pr-8 appearance-none`}>
-                  <option value="public">일반글</option>
-                  <option value="private">비밀글</option>
-                </select>
-                <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs">▾</span>
-              </div>
+          </div>
+
+          {/* 발행 방식 */}
+          <div>
+            <label className="block text-xs font-semibold text-[#4361ee] mb-2">발행 방식</label>
+            <div className="grid grid-cols-3 gap-2">
+              {/* 즉시 발행 */}
+              <button
+                type="button"
+                onClick={() => setPublishMode("immediate")}
+                className={`flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl border-2 transition-all ${
+                  publishMode === "immediate"
+                    ? "border-[#4361ee] bg-[#4361ee]/5 text-[#4361ee]"
+                    : "border-gray-200 text-gray-500 hover:border-gray-300"
+                }`}
+              >
+                <Zap className={`h-4 w-4 ${publishMode === "immediate" ? "text-[#4361ee]" : "text-gray-400"}`} />
+                <span className="text-xs font-medium">즉시 발행</span>
+              </button>
+              {/* 예약 발행 */}
+              <button
+                type="button"
+                onClick={() => setPublishMode("scheduled")}
+                className={`flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl border-2 transition-all ${
+                  publishMode === "scheduled"
+                    ? "border-blue-500 bg-blue-50 text-blue-600"
+                    : "border-gray-200 text-gray-500 hover:border-gray-300"
+                }`}
+              >
+                <Clock className={`h-4 w-4 ${publishMode === "scheduled" ? "text-blue-500" : "text-gray-400"}`} />
+                <span className="text-xs font-medium">예약 발행</span>
+              </button>
+              {/* 비밀글 */}
+              <button
+                type="button"
+                onClick={() => setPublishMode("draft")}
+                className={`flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl border-2 transition-all ${
+                  publishMode === "draft"
+                    ? "border-amber-400 bg-amber-50 text-amber-600"
+                    : "border-gray-200 text-gray-500 hover:border-gray-300"
+                }`}
+              >
+                <EyeOff className={`h-4 w-4 ${publishMode === "draft" ? "text-amber-500" : "text-gray-400"}`} />
+                <span className="text-xs font-medium">비밀글</span>
+              </button>
             </div>
+
+            {/* 예약 발행 날짜·시간 선택 */}
+            {publishMode === "scheduled" && (
+              <div className="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-xl">
+                <label className="block text-xs font-medium text-blue-700 mb-1.5">발행 날짜·시간 선택</label>
+                <input
+                  type="datetime-local"
+                  value={scheduledDateTime}
+                  onChange={e => setScheduledDateTime(e.target.value)}
+                  min={new Date().toISOString().slice(0, 16)}
+                  className="w-full text-sm border border-blue-200 rounded-lg px-3 py-2 bg-white outline-none focus:ring-2 focus:ring-blue-300"
+                />
+                <p className="mt-1.5 text-[11px] text-blue-500">
+                  지정한 시각이 되면 자동으로 공개됩니다. 저장 후 관리자 패널에서 예약 상태를 확인할 수 있습니다.
+                </p>
+              </div>
+            )}
           </div>
 
           {/* 내용 */}

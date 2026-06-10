@@ -3,8 +3,9 @@
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
-import { Pencil, Trash2, ChevronUp, ChevronDown, Eye, EyeOff } from "lucide-react"
+import { Pencil, Trash2, ChevronUp, ChevronDown, Eye, EyeOff, Clock } from "lucide-react"
 import type { Post } from "@/lib/posts"
+import { formatDate } from "@/lib/formatDate"
 
 interface Props {
   posts: Post[]
@@ -22,11 +23,6 @@ const CATEGORY_COLORS: Record<string, string> = {
   기타: "bg-gray-100 text-gray-600",
 }
 
-function formatDate(dateStr: string) {
-  const d = new Date(dateStr)
-  if (isNaN(d.getTime())) return dateStr
-  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}.`
-}
 
 export function AdminPostTable({ posts, selectedCategory }: Props) {
   const router = useRouter()
@@ -98,7 +94,7 @@ export function AdminPostTable({ posts, selectedCategory }: Props) {
               <th className="pl-5 pr-2 py-2.5 text-left text-xs text-gray-400 font-medium w-6">#</th>
               <th className="py-2.5 pr-3 text-left text-xs text-gray-400 font-medium">제목</th>
               <th className="py-2.5 pr-3 text-xs text-gray-400 font-medium w-20 text-center hidden md:table-cell">상태</th>
-              <th className="py-2.5 pr-3 text-xs text-gray-400 font-medium w-24 text-right hidden md:table-cell">날짜</th>
+              <th className="py-2.5 pr-3 text-xs text-gray-400 font-medium w-32 text-right hidden md:table-cell">날짜</th>
               <th className="py-2.5 pr-5 text-xs text-gray-400 font-medium w-36 text-right">관리</th>
             </tr>
           </thead>
@@ -115,7 +111,7 @@ export function AdminPostTable({ posts, selectedCategory }: Props) {
                   <td className="pl-5 pr-2 py-3 text-xs text-gray-400 align-middle">{posts.length - i}</td>
 
                   {/* 제목 */}
-                  <td className="py-3 pr-3 align-middle">
+                  <td className="py-3 pr-3 align-middle max-w-0 w-full">
                     <div className="flex items-center gap-2 min-w-0">
                       <span className={`shrink-0 text-[10px] px-1.5 py-0.5 rounded font-medium ${colorClass}`}>
                         {post.category}
@@ -135,6 +131,10 @@ export function AdminPostTable({ posts, selectedCategory }: Props) {
                       <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 font-medium">
                         <Eye className="h-3 w-3" /> 발행
                       </span>
+                    ) : post.scheduledAt ? (
+                      <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 font-medium" title={formatDate(post.scheduledAt)}>
+                        <Clock className="h-3 w-3" /> 예약
+                      </span>
                     ) : (
                       <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 font-medium">
                         <EyeOff className="h-3 w-3" /> 초안
@@ -142,9 +142,13 @@ export function AdminPostTable({ posts, selectedCategory }: Props) {
                     )}
                   </td>
 
-                  {/* 날짜 */}
-                  <td className="py-3 pr-3 text-xs text-gray-400 text-right align-middle hidden md:table-cell">
-                    {formatDate(post.date)}
+                  {/* 날짜: 예약글은 예약 시각, 발행글은 발행 시각 */}
+                  <td className="py-3 pr-3 text-xs text-right align-middle hidden md:table-cell">
+                    {post.scheduledAt ? (
+                      <span className="text-blue-400">{formatDate(post.scheduledAt)}</span>
+                    ) : (
+                      <span className="text-gray-400">{formatDate(post.date)}</span>
+                    )}
                   </td>
 
                   {/* 관리 버튼 */}

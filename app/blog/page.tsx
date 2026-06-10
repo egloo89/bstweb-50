@@ -1,6 +1,7 @@
 import { getAllPosts } from "@/lib/posts"
 import { getCategories } from "@/lib/categories"
 import { BlogHeader } from "@/components/BlogHeader"
+import { SiteFooter } from "@/components/SiteFooter"
 
 export const dynamic = "force-dynamic"
 export const revalidate = 0
@@ -25,11 +26,11 @@ export default async function BlogPage({ searchParams }: { searchParams: { page?
   const posts = allPosts.slice(start, start + PAGE_SIZE)
 
   return (
-    <div className="blog-container">
+    <div className="blog-container flex flex-col">
       <BlogHeader />
       <FeaturedPosts posts={allPosts} />
-      <div className="flex" style={{ minHeight: 500 }}>
-        <div className="hidden md:block">
+      <div className="flex flex-1" style={{ minHeight: 500 }}>
+        <div className="hidden md:flex">
           <CategorySidebar categories={categories} totalCount={allPosts.length} />
         </div>
         <PostTable
@@ -41,6 +42,7 @@ export default async function BlogPage({ searchParams }: { searchParams: { page?
           basePath="/blog"
         />
       </div>
+      <SiteFooter />
     </div>
   )
 }

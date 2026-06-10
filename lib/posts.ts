@@ -11,6 +11,7 @@ export interface PostFrontmatter {
   thumbnail?: string
   published: boolean
   views?: number
+  scheduledAt?: string   // ISO string — 예약 발행 시각
 }
 
 export interface Post extends PostFrontmatter {
@@ -29,6 +30,7 @@ export interface CreatePostInput {
   published?: boolean
   content: string
   views?: number
+  scheduledAt?: string   // ISO string — 예약 발행 시각
 }
 
 const POSTS_DIR = path.join(process.cwd(), "posts")
@@ -134,6 +136,23 @@ export async function getAllPosts(includeUnpublished = false): Promise<Post[]> {
     .filter((p): p is Post => p !== null)
 
   const all = [...kvPosts, ...mdxPosts]
+
+  // 예약 발행: scheduledAt 이 현재 시각 이전인 미발행 글을 자동 발행
+  const now = new Date().toISOString()
+  const toPublish = all.filter(p => !p.published && p.scheduledAt && p.scheduledAt <= now)
+  if (toPublish.length > 0 && r) {
+    // fire-and-forget (페이지 렌더 블로킹 없이 Redis 업데이트)
+    void Promise.all(
+      toPublish.map(p => {
+        // date를 scheduledAt으로 갱신 → 발행 시각이 표시되도록
+        const updated = { ...p, published: true, date: p.scheduledAt!, scheduledAt: undefined }
+        return r.set(KV_POST(p.slug), updated)
+      })
+    ).catch(console.error)
+    // 반환값에서도 즉시 반영
+    toPublish.forEach(p => { p.published = true; p.date = p.scheduledAt!; delete p.scheduledAt })
+  }
+
   const filtered = includeUnpublished ? all : all.filter(p => p.published)
   return filtered.sort((a, b) => (a.date < b.date ? 1 : -1))
 }
@@ -162,6 +181,25 @@ export async function getPostBySlug(slug: string): Promise<Post | null> {
   return null
 }
 
+export async function incrementViews(slug: string): Promise<void> {
+  try {
+    const r = await getRedis()
+    if (!r) return
+    // Redis에 없는 경우(MDX 포스트 등)도 처리하기 위해 getPostBySlug 사용
+    const post = await getPostBySlug(slug)
+    if (!post) return
+    const updated = { ...post, views: (post.views ?? 0) + 1 }
+    await r.set(KV_POST(slug), updated)
+    // MDX 포스트가 Redis slugs 목록에 없는 경우 추가
+    const slugs = await kvGetSlugs(r)
+    if (!slugs.includes(slug)) {
+      await r.set(KV_SLUGS_KEY, [...slugs, slug])
+    }
+  } catch (e) {
+    console.error("[posts] incrementViews error:", e)
+  }
+}
+
 export async function createPost(input: CreatePostInput): Promise<Post> {
   const r = await getRedis()
   // Check duplicate slug
@@ -179,6 +217,7 @@ export async function createPost(input: CreatePostInput): Promise<Post> {
     published: input.published !== false,
     content: input.content,
     views: input.views ?? 0,
+    ...(input.scheduledAt ? { scheduledAt: input.scheduledAt } : {}),
   }
 
   if (r) {
@@ -210,6 +249,7 @@ export async function updatePost(slug: string, input: CreatePostInput): Promise<
     published: input.published !== false,
     content: input.content,
     views: existing.views ?? 0,
+    ...(input.scheduledAt ? { scheduledAt: input.scheduledAt } : {}),
   }
 
   if (!r) throw new Error("저장소에 연결할 수 없습니다.")

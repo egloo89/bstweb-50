@@ -6,6 +6,9 @@ import { getCategories } from "@/lib/categories"
 import { CategorySidebar } from "@/components/CategorySidebar"
 import { BlogHeader } from "@/components/BlogHeader"
 import { MDXContent } from "@/components/MDXContent"
+import { SiteFooter } from "@/components/SiteFooter"
+import { ViewTracker } from "@/components/ViewTracker"
+import { CommentSection } from "@/components/CommentSection"
 
 export const dynamic = "force-dynamic"
 export const revalidate = 0
@@ -13,10 +16,21 @@ export const revalidate = 0
 export async function generateMetadata({ params }: { params: { slug: string } }) {
   const post = await getPostBySlug(params.slug)
   if (!post) return { title: "글을 찾을 수 없습니다" }
+  const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://boostwebstudio.vercel.app"
+  const url = `${BASE_URL}/blog/${params.slug}`
   return {
     title: post.title,
     description: post.excerpt,
-    openGraph: { title: post.title, description: post.excerpt, type: "article", publishedTime: post.date },
+    keywords: post.tags,
+    alternates: { canonical: url },
+    openGraph: {
+      title: post.title,
+      description: post.excerpt,
+      type: "article",
+      publishedTime: post.date,
+      url,
+      images: post.thumbnail ? [{ url: post.thumbnail, width: 1200, height: 630, alt: post.title }] : [],
+    },
   }
 }
 
@@ -69,10 +83,10 @@ export default async function PostPage({ params }: { params: { slug: string } })
   const colorClass = CATEGORY_COLORS[post.category] || CATEGORY_COLORS["기타"]
 
   return (
-    <div className="blog-container">
+    <div className="blog-container flex flex-col">
       <BlogHeader />
-      <div className="flex" style={{ minHeight: 600 }}>
-        <div className="hidden md:block">
+      <div className="flex flex-1" style={{ minHeight: 600 }}>
+        <div className="hidden md:flex">
           <CategorySidebar categories={categories} totalCount={allPosts.length} selectedCategory={post.category} />
         </div>
         <main className="flex-1 min-w-0 px-4 md:px-8 py-5 md:py-7">
@@ -104,6 +118,31 @@ export default async function PostPage({ params }: { params: { slug: string } })
             <img src={post.thumbnail} alt={post.title} className="w-full rounded-lg mb-6 max-h-80 object-cover" />
           )}
 
+          {/* JSON-LD 구조화 데이터 (구글 rich result) */}
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{
+              __html: JSON.stringify({
+                "@context": "https://schema.org",
+                "@type": "BlogPosting",
+                headline: post.title,
+                description: post.excerpt,
+                image: post.thumbnail || undefined,
+                datePublished: post.date,
+                dateModified: post.date,
+                author: { "@type": "Person", name: "Black Bay Blog" },
+                publisher: {
+                  "@type": "Organization",
+                  name: "Black Bay Blog",
+                  logo: { "@type": "ImageObject", url: `${process.env.NEXT_PUBLIC_SITE_URL || "https://bstweb-50.vercel.app"}/logo.png` },
+                },
+                keywords: post.tags.join(", "),
+              }),
+            }}
+          />
+
+          <ViewTracker slug={post.slug} />
+
           <article>
             {isHTML
               ? <HTMLContent html={post.content} />
@@ -118,6 +157,8 @@ export default async function PostPage({ params }: { params: { slug: string } })
               ))}
             </div>
           )}
+
+          <CommentSection slug={post.slug} />
 
           <div className="mt-8 border-t border-gray-100 pt-5 grid grid-cols-2 gap-3 text-sm">
             {prevPost ? (
@@ -135,6 +176,7 @@ export default async function PostPage({ params }: { params: { slug: string } })
           </div>
         </main>
       </div>
+      <SiteFooter />
     </div>
   )
 }
