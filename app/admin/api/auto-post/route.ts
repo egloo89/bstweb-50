@@ -67,9 +67,43 @@ function is503(msg: string) {
   )
 }
 
-/** SDK 우회: Google v1 REST API 직접 호출 (gemini-1.5-flash 안정 버전) */
-async function generateWithV1Fetch(apiKey: string, spec: PostSpec) {
-  const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`
+// 선호 순서대로 시도할 Flash 모델 목록
+const FLASH_CANDIDATES = [
+  "gemini-2.5-flash",
+  "gemini-2.5-flash-lite",
+  "gemini-2.0-flash-lite",
+  "gemini-1.5-flash",
+  "gemini-1.5-flash-latest",
+]
+
+/** Google Models API로 현재 실제 사용 가능한 Flash 모델을 찾아 반환 */
+async function findBestFlashModel(apiKey: string): Promise<string> {
+  try {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1/models?key=${apiKey}&pageSize=100`
+    )
+    if (res.ok) {
+      const data = await res.json()
+      const available: string[] = (data.models ?? [])
+        .filter((m: { supportedGenerationMethods?: string[] }) =>
+          m.supportedGenerationMethods?.includes("generateContent")
+        )
+        .map((m: { name: string }) => m.name.replace("models/", ""))
+
+      for (const candidate of FLASH_CANDIDATES) {
+        if (available.includes(candidate)) return candidate
+        const match = available.find((n) => n.startsWith(candidate))
+        if (match) return match
+      }
+    }
+  } catch {}
+  // 조회 실패 시 가장 최신 후보를 기본값으로
+  return FLASH_CANDIDATES[0]
+}
+
+/** Google v1 REST API 직접 호출 (SDK v1beta 우회) */
+async function generateWithV1Fetch(apiKey: string, spec: PostSpec, modelName: string) {
+  const url = `https://generativelanguage.googleapis.com/v1/models/${modelName}:generateContent?key=${apiKey}`
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -80,11 +114,11 @@ async function generateWithV1Fetch(apiKey: string, spec: PostSpec) {
   })
   if (!res.ok) {
     const errText = await res.text()
-    throw new Error(`gemini-1.5-flash v1 오류 ${res.status}: ${errText}`)
+    throw new Error(`${modelName} v1 오류 ${res.status}: ${errText}`)
   }
   const data = await res.json()
   const text: string = data.candidates?.[0]?.content?.parts?.[0]?.text
-  if (!text) throw new Error("gemini-1.5-flash 응답에 텍스트가 없습니다.")
+  if (!text) throw new Error(`${modelName} 응답에 텍스트가 없습니다.`)
   return parseResponse(text.trim())
 }
 
@@ -92,22 +126,28 @@ async function generatePost(spec: PostSpec) {
   const apiKey = process.env.GEMINI_API_KEY!
   const genAI = new GoogleGenerativeAI(apiKey)
 
-  // 1차: gemini-2.5-flash (v1beta) — 3회 시도
+  // 현재 사용 가능한 최신 Flash 모델 자동 탐색
+  const modelName = await findBestFlashModel(apiKey)
+
+  // SDK로 최대 3회 시도 (429/503만 재시도)
+  let lastError: Error | null = null
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
-      return await generateWithModel(genAI, "gemini-2.0-flash", spec)
+      return await generateWithModel(genAI, modelName, spec)
     } catch (e) {
-      const msg = (e as Error).message ?? ""
-      if ((is503(msg) || msg.includes("429") || msg.includes("Too Many")) && attempt < 3) {
-        await new Promise(r => setTimeout(r, attempt * 7000)) // 7초, 14초
+      lastError = e as Error
+      const msg = lastError.message ?? ""
+      const isRetryable = is503(msg) || msg.includes("429") || msg.includes("Too Many")
+      if (isRetryable && attempt < 3) {
+        await new Promise(r => setTimeout(r, attempt * 7000))
         continue
       }
-      if (!is503(msg) && !msg.includes("429")) throw e
+      break
     }
   }
 
-  // 2차 폴백: gemini-1.5-flash v1 REST API 직접 호출 (SDK 우회)
-  return await generateWithV1Fetch(apiKey, spec)
+  // 최후 폴백: v1 REST 직접 호출 (SDK v1beta 우회)
+  return await generateWithV1Fetch(apiKey, spec, modelName)
 }
 
 // ── 주제 배열: 매우 구체적인 서브토픽으로 세분화 (획일화 방지) ──────────────
