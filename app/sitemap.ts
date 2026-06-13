@@ -6,7 +6,13 @@ export const dynamic = "force-dynamic"
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://boostwebstudio.vercel.app"
 
 export default async function sitemap() {
-  const [posts, categories] = await Promise.all([getAllPosts(), getCategories()])
+  // 에러가 나도 기본 페이지는 반환
+  let posts: Awaited<ReturnType<typeof getAllPosts>> = []
+  let categories: Awaited<ReturnType<typeof getCategories>> = []
+
+  try {
+    ;[posts, categories] = await Promise.all([getAllPosts(), getCategories()])
+  } catch {}
 
   const postUrls = posts.map((post) => ({
     url: `${BASE_URL}/blog/${encodeURIComponent(post.slug)}`,
