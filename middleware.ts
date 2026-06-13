@@ -8,7 +8,8 @@ export function middleware(request: NextRequest) {
   if (
     pathname.startsWith("/admin") &&
     pathname !== "/admin/login" &&
-    !pathname.startsWith("/admin/api/auth")
+    !pathname.startsWith("/admin/api/auth") &&
+    !pathname.startsWith("/admin/api/cron")
   ) {
     const cookie = request.cookies.get(AUTH_COOKIE)
     if (!cookie || cookie.value !== "authenticated") {
