@@ -317,7 +317,7 @@ ${audienceGuide}
 
 반드시 아래 JSON 형식으로만 응답 (마크다운 코드블록 없이 순수 JSON):
 {
-  "title": "SEO 최적화 제목 (연도 없이)",
+  "title": "SEO 최적화 제목 — 순수 텍스트만, HTML 태그 절대 금지 (연도 없이)",
   "excerpt": "검색 결과 요약, 독자 클릭 유도, 2문장 이내 80자",
   "tags": ["태그1", "태그2", "태그3", "태그4", "태그5"],
   "imageKeywords": "english image search keywords",
@@ -375,9 +375,10 @@ function parseResponse(raw: string): ParsedPost {
   let tags: string[] = []
   try { if (tagsMatch) tags = JSON.parse(tagsMatch[1]) } catch {}
 
+  const stripTags = (s: string) => s.replace(/<[^>]*>/g, "").trim()
   return {
-    title: get(/"title"\s*:\s*"((?:[^"\\]|\\.)*)"/),
-    excerpt: get(/"excerpt"\s*:\s*"((?:[^"\\]|\\.)*)"/),
+    title: stripTags(get(/"title"\s*:\s*"((?:[^"\\]|\\.)*)"/) ),
+    excerpt: stripTags(get(/"excerpt"\s*:\s*"((?:[^"\\]|\\.)*)"/) ),
     tags,
     imageKeywords: get(/"imageKeywords"\s*:\s*"((?:[^"\\]|\\.)*)"/),
     content,

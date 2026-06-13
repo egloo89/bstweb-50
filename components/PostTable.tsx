@@ -1,6 +1,7 @@
 import Link from "next/link"
 import type { Post } from "@/lib/posts"
 import { formatDate } from "@/lib/formatDate"
+import { stripHtml } from "@/lib/utils"
 
 interface Props {
   posts: Post[]
@@ -64,12 +65,12 @@ export function PostTable({ posts, allCount, label = "전체글보기", currentP
                         href={`/blog/${post.slug}`}
                         className="text-[13px] md:text-sm text-gray-800 hover:text-[#4361ee] font-medium truncate transition-colors"
                       >
-                        {post.title}
+                        {stripHtml(post.title)}
                       </Link>
                     </div>
                     {post.excerpt && (
                       <p className="hidden sm:block text-xs text-gray-400 mt-0.5 truncate pl-[calc(1.5rem+8px)]">
-                        {post.excerpt}
+                        {stripHtml(post.excerpt)}
                       </p>
                     )}
                   </td>

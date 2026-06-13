@@ -6,6 +6,7 @@ import { useState } from "react"
 import { Pencil, Trash2, ChevronUp, ChevronDown, Eye, EyeOff, Clock } from "lucide-react"
 import type { Post } from "@/lib/posts"
 import { formatDate } from "@/lib/formatDate"
+import { stripHtml } from "@/lib/utils"
 
 interface Props {
   posts: Post[]
@@ -117,11 +118,11 @@ export function AdminPostTable({ posts, selectedCategory }: Props) {
                         {post.category}
                       </span>
                       <span className="text-[13px] text-gray-800 font-medium truncate">
-                        {post.title}
+                        {stripHtml(post.title)}
                       </span>
                     </div>
                     <p className="text-xs text-gray-400 mt-0.5 pl-[calc(1.5rem+8px)] truncate">
-                      {post.excerpt}
+                      {stripHtml(post.excerpt)}
                     </p>
                   </td>
 
