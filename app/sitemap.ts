@@ -1,17 +1,25 @@
 import { getAllPosts } from "@/lib/posts"
+import { getCategories } from "@/lib/categories"
 
 export const dynamic = "force-dynamic"
 
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://boostwebstudio.vercel.app"
 
 export default async function sitemap() {
-  const posts = await getAllPosts()
+  const [posts, categories] = await Promise.all([getAllPosts(), getCategories()])
 
   const postUrls = posts.map((post) => ({
-    url: `${BASE_URL}/blog/${post.slug}`,
+    url: `${BASE_URL}/blog/${encodeURIComponent(post.slug)}`,
     lastModified: new Date(post.date),
     changeFrequency: "weekly" as const,
     priority: 0.8,
+  }))
+
+  const categoryUrls = categories.map((cat) => ({
+    url: `${BASE_URL}/category/${cat.slug}`,
+    lastModified: new Date(),
+    changeFrequency: "daily" as const,
+    priority: 0.7,
   }))
 
   return [
@@ -27,6 +35,7 @@ export default async function sitemap() {
       changeFrequency: "daily" as const,
       priority: 0.9,
     },
+    ...categoryUrls,
     ...postUrls,
   ]
 }

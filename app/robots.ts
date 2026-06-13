@@ -8,7 +8,14 @@ export default function robots() {
         allow: "/",
         disallow: ["/admin/", "/admin/api/"],
       },
+      // 네이버 봇 명시적 허용
+      {
+        userAgent: "Yeti",
+        allow: "/",
+        disallow: ["/admin/", "/admin/api/"],
+      },
     ],
     sitemap: `${BASE_URL}/sitemap.xml`,
+    host: BASE_URL,
   }
 }
