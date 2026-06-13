@@ -2,12 +2,13 @@
 
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useCallback } from "react"
 import {
   Folder, Star, PlusCircle, LogOut, ExternalLink,
   Settings, Check, X, ChevronUp, ChevronDown, Trash2, FolderPlus, Pencil,
-  Sparkles, Loader2, Clock, Zap,
+  Sparkles, TrendingUp, Building2, Flame, Loader2,
 } from "lucide-react"
+import { AutoPostModal } from "./AutoPostModal"
 
 interface CategoryInfo {
   name: string
@@ -20,6 +21,42 @@ interface Props {
   allCount: number
   selectedCategory?: string
 }
+
+interface PlanInfo {
+  id: string
+  type: string
+  label: string
+  totalCount: number
+  publishedCount: number
+  nextAt: string
+}
+
+const POST_BUTTONS = [
+  {
+    type: "ai" as const,
+    label: "AI 포스팅",
+    icon: Sparkles,
+    className: "bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700",
+  },
+  {
+    type: "finance" as const,
+    label: "재테크 포스팅",
+    icon: TrendingUp,
+    className: "bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700",
+  },
+  {
+    type: "loan" as const,
+    label: "대출/국가제도",
+    icon: Building2,
+    className: "bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700",
+  },
+  {
+    type: "issue" as const,
+    label: "이슈 포스팅",
+    icon: Flame,
+    className: "bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700",
+  },
+]
 
 export function AdminSidebar({ categories: initialCategories, allCount, selectedCategory }: Props) {
   const router = useRouter()
@@ -39,55 +76,30 @@ export function AdminSidebar({ categories: initialCategories, allCount, selected
   const [renamingIdx, setRenamingIdx] = useState<number | null>(null)
   const [renameVal, setRenameVal] = useState("")
   const [saving, setSaving] = useState(false)
-  const [autoPosting, setAutoPosting] = useState<"ai" | "finance" | null>(null)
+  const [activeModal, setActiveModal] = useState<"ai" | "finance" | "loan" | "issue" | null>(null)
   const [autoResult, setAutoResult] = useState<string | null>(null)
-  // 발행 방식 선택 모달
-  const [postModal, setPostModal] = useState<{ type: "ai" | "finance" } | null>(null)
-  const [scheduledAt, setScheduledAt] = useState("")
+  const [plans, setPlans] = useState<PlanInfo[]>([])
   const newInputRef = useRef<HTMLInputElement>(null)
 
-  // 현재 시각을 datetime-local 입력값 형식으로 반환
-  function getNowLocal() {
-    const d = new Date()
-    d.setMinutes(d.getMinutes() + 10) // 기본값: 10분 후
-    const pad = (n: number) => String(n).padStart(2, "0")
-    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
-  }
-
-  function openPostModal(type: "ai" | "finance") {
-    setScheduledAt(getNowLocal())
-    setAutoResult(null)
-    setPostModal({ type })
-  }
-
-  async function handleAutoPost(type: "ai" | "finance", scheduled?: string) {
-    setPostModal(null)
-    setAutoPosting(type)
-    setAutoResult(null)
+  const fetchPlans = useCallback(async () => {
     try {
-      const body: Record<string, string> = { type }
-      if (scheduled) body.scheduledAt = new Date(scheduled).toISOString()
-      const res = await fetch("/admin/api/auto-post", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      })
+      const res = await fetch("/admin/api/auto-post/jobs")
       const data = await res.json()
-      if (!data.ok && data.error) {
-        setAutoResult(`❌ 오류: ${data.error}`)
-      } else {
-        const ok = data.results?.map((r: { title: string; category: string }) =>
-          scheduled ? `🕐 [${r.category}] 예약 완료: ${r.title}` : `✅ [${r.category}] ${r.title}`
-        ).join("\n") || ""
-        const fail = data.errors?.map((e: { category: string; error: string }) => `❌ [${e.category}] ${e.error}`).join("\n") || ""
-        setAutoResult([ok, fail].filter(Boolean).join("\n"))
-        router.refresh()
+      if (data.ok && Array.isArray(data.plans)) {
+        setPlans(data.plans)
       }
-    } catch (e) {
-      setAutoResult(`❌ 네트워크 오류: ${(e as Error).message}`)
-    } finally {
-      setAutoPosting(null)
-    }
+    } catch {}
+  }, [])
+
+  useEffect(() => {
+    fetchPlans()
+  }, [fetchPlans])
+
+  async function cancelPlan(id: string) {
+    try {
+      await fetch(`/admin/api/auto-post/jobs?id=${encodeURIComponent(id)}`, { method: "DELETE" })
+      setPlans(prev => prev.filter(p => p.id !== id))
+    } catch {}
   }
 
   async function saveCategories(list: string[]) {
@@ -208,33 +220,75 @@ export function AdminSidebar({ categories: initialCategories, allCount, selected
           <PlusCircle className="h-4 w-4" />
           새 글 추가
         </Link>
-        <div className="flex gap-1.5">
-          <button
-            onClick={() => openPostModal("ai")}
-            disabled={autoPosting !== null}
-            className="flex items-center justify-center gap-1.5 flex-1 py-2 rounded-lg bg-gradient-to-r from-violet-500 to-purple-600 text-white text-xs font-medium hover:from-violet-600 hover:to-purple-700 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            {autoPosting === "ai" ? (
-              <><Loader2 className="h-3.5 w-3.5 animate-spin" /> 작성 중...</>
-            ) : (
-              <><Sparkles className="h-3.5 w-3.5" /> AI 포스팅</>
-            )}
-          </button>
-          <button
-            onClick={() => openPostModal("finance")}
-            disabled={autoPosting !== null}
-            className="flex items-center justify-center gap-1.5 flex-1 py-2 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-xs font-medium hover:from-emerald-600 hover:to-teal-700 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            {autoPosting === "finance" ? (
-              <><Loader2 className="h-3.5 w-3.5 animate-spin" /> 작성 중...</>
-            ) : (
-              <><Sparkles className="h-3.5 w-3.5" /> 재테크 포스팅</>
-            )}
-          </button>
+
+        {/* 2x2 포스팅 버튼 그리드 */}
+        <div className="grid grid-cols-2 gap-1.5">
+          {POST_BUTTONS.map(btn => {
+            const Icon = btn.icon
+            const isActive = activeModal === btn.type
+            return (
+              <button
+                key={btn.type}
+                onClick={() => setActiveModal(isActive ? null : btn.type)}
+                className={`flex items-center justify-center gap-1 py-2 rounded-lg text-white text-[11px] font-medium transition-all ${btn.className} ${isActive ? "ring-2 ring-offset-1 ring-white/50" : ""}`}
+              >
+                <Icon className="h-3 w-3 shrink-0" />
+                <span className="truncate">{btn.label}</span>
+              </button>
+            )
+          })}
         </div>
+
+        {/* 활성화된 모달 */}
+        {activeModal && (
+          <AutoPostModal
+            type={activeModal}
+            label={POST_BUTTONS.find(b => b.type === activeModal)?.label ?? ""}
+            onClose={() => setActiveModal(null)}
+            onSuccess={(msg) => {
+              setAutoResult(msg)
+              setActiveModal(null)
+              fetchPlans()
+              router.refresh()
+            }}
+          />
+        )}
+
         {autoResult && (
           <div className="text-[11px] leading-relaxed bg-gray-50 border border-gray-200 rounded-md px-2.5 py-2 text-gray-600 whitespace-pre-line">
             {autoResult}
+            <button
+              onClick={() => setAutoResult(null)}
+              className="ml-1 text-gray-400 hover:text-gray-600"
+            >
+              <X className="inline h-3 w-3" />
+            </button>
+          </div>
+        )}
+
+        {/* 예약 포스팅 현황 */}
+        {plans.length > 0 && (
+          <div className="space-y-1">
+            <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide">예약 포스팅 현황</p>
+            {plans.map(plan => (
+              <div key={plan.id} className="flex items-center justify-between bg-blue-50 rounded-md px-2 py-1.5">
+                <div className="min-w-0">
+                  <p className="text-[11px] font-medium text-blue-700 truncate">{plan.label}</p>
+                  <p className="text-[10px] text-blue-500">
+                    {plan.publishedCount}/{plan.totalCount}개 · 다음:{" "}
+                    {new Date(plan.nextAt).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                  </p>
+                </div>
+                <button
+                  onClick={() => cancelPlan(plan.id)}
+                  className="p-1 text-blue-400 hover:text-red-500 transition-colors shrink-0"
+                  title="예약 취소"
+                >
+                  <Loader2 className="hidden" />
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ))}
           </div>
         )}
       </div>
@@ -391,80 +445,7 @@ export function AdminSidebar({ categories: initialCategories, allCount, selected
       </div>
     </aside>
 
-    {/* ── 발행 방식 선택 모달 ── */}
-    {postModal && (
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
-          {/* 모달 헤더 */}
-          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-            <div className="flex items-center gap-2">
-              <Sparkles className={`h-4 w-4 ${postModal.type === "ai" ? "text-violet-500" : "text-emerald-500"}`} />
-              <span className="font-semibold text-sm text-gray-800">
-                {postModal.type === "ai" ? "AI 포스팅" : "재테크 포스팅"} 발행 방식
-              </span>
-            </div>
-            <button
-              onClick={() => setPostModal(null)}
-              className="p-1 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-
-          <div className="p-5 space-y-3">
-            {/* 즉시 발행 */}
-            <button
-              onClick={() => handleAutoPost(postModal.type)}
-              className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl border-2 border-[#4361ee] bg-[#4361ee]/5 hover:bg-[#4361ee]/10 transition-colors group"
-            >
-              <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-[#4361ee] text-white shrink-0">
-                <Zap className="h-4 w-4" />
-              </div>
-              <div className="text-left">
-                <p className="text-sm font-semibold text-[#4361ee]">즉시 발행</p>
-                <p className="text-xs text-gray-500">AI가 작성 후 바로 게시됩니다</p>
-              </div>
-            </button>
-
-            {/* 예약 발행 */}
-            <div className="rounded-xl border-2 border-gray-200 hover:border-blue-300 transition-colors overflow-hidden">
-              <div className="flex items-center gap-3 px-4 py-3 bg-gray-50">
-                <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-blue-500 text-white shrink-0">
-                  <Clock className="h-4 w-4" />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-gray-800">예약 발행</p>
-                  <p className="text-xs text-gray-500">지정한 날짜·시간에 자동 게시</p>
-                </div>
-              </div>
-              <div className="px-4 pb-4 pt-3 space-y-3">
-                <input
-                  type="datetime-local"
-                  value={scheduledAt}
-                  onChange={e => setScheduledAt(e.target.value)}
-                  min={new Date().toISOString().slice(0, 16)}
-                  className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100 bg-white"
-                />
-                <button
-                  onClick={() => {
-                    if (!scheduledAt) return
-                    handleAutoPost(postModal.type, scheduledAt)
-                  }}
-                  disabled={!scheduledAt}
-                  className="w-full py-2.5 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                >
-                  예약 설정하기
-                </button>
-              </div>
-            </div>
-
-            <p className="text-[11px] text-gray-400 text-center pt-1">
-              AI 작성은 즉시 시작되며, 예약 시각에 자동으로 공개됩니다
-            </p>
-          </div>
-        </div>
-      </div>
-    )}
     </>
+
   )
 }
