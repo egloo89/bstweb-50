@@ -4,12 +4,15 @@ import { getPlans, updatePlan, removePlan } from "@/lib/autopost-jobs"
 import { createPost } from "@/lib/posts"
 import { readCategoryList } from "@/lib/categories"
 import { slugify } from "@/lib/utils"
+import { pingSearchEngines } from "@/lib/indexnow"
 import {
   generatePost,
   fetchImage,
   resolveCategory,
   POST_SPECS,
 } from "@/app/admin/api/auto-post/route"
+
+const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://boostwebstudio.vercel.app"
 
 export const maxDuration = 60
 
@@ -85,6 +88,8 @@ export async function GET(req: Request) {
 
   if (published.length > 0) {
     revalidatePath("/", "layout")
+    const urls = published.map(p => `${BASE_URL}/blog/${encodeURIComponent(p.slug)}`)
+    pingSearchEngines(urls).catch(() => {})
   }
 
   return NextResponse.json({

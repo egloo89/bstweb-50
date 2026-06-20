@@ -230,6 +230,12 @@ export async function createPost(input: CreatePostInput): Promise<Post> {
     throw new Error("저장소에 연결할 수 없습니다. (KV 환경변수 확인)")
   }
 
+  if (post.published) {
+    const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://boostwebstudio.vercel.app"
+    const { pingSearchEngines } = await import("./indexnow")
+    pingSearchEngines([`${BASE_URL}/blog/${encodeURIComponent(post.slug)}`]).catch(() => {})
+  }
+
   return post
 }
 

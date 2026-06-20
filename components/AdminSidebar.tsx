@@ -6,7 +6,7 @@ import { useState, useRef, useEffect, useCallback } from "react"
 import {
   Folder, Star, PlusCircle, LogOut, ExternalLink,
   Settings, Check, X, ChevronUp, ChevronDown, Trash2, FolderPlus, Pencil,
-  Sparkles, TrendingUp, Building2, Flame, Loader2,
+  Sparkles, TrendingUp, Building2, Flame, Loader2, Search,
 } from "lucide-react"
 import { AutoPostModal } from "./AutoPostModal"
 
@@ -79,6 +79,8 @@ export function AdminSidebar({ categories: initialCategories, allCount, selected
   const [activeModal, setActiveModal] = useState<"ai" | "finance" | "loan" | "issue" | null>(null)
   const [autoResult, setAutoResult] = useState<string | null>(null)
   const [plans, setPlans] = useState<PlanInfo[]>([])
+  const [indexing, setIndexing] = useState(false)
+  const [indexResult, setIndexResult] = useState<string | null>(null)
   const newInputRef = useRef<HTMLInputElement>(null)
 
   const fetchPlans = useCallback(async () => {
@@ -203,6 +205,25 @@ export function AdminSidebar({ categories: initialCategories, allCount, selected
     }
   }
 
+  async function handleIndexAll() {
+    if (indexing) return
+    setIndexing(true)
+    setIndexResult(null)
+    try {
+      const res = await fetch("/admin/api/index-all", { method: "POST" })
+      const data = await res.json()
+      if (data.ok) {
+        setIndexResult(`✅ ${data.count}개 글 색인 요청 완료`)
+      } else {
+        setIndexResult("❌ 색인 요청 실패")
+      }
+    } catch {
+      setIndexResult("❌ 오류 발생")
+    } finally {
+      setIndexing(false)
+    }
+  }
+
   async function handleLogout() {
     await fetch("/admin/api/auth", { method: "DELETE" })
     router.push("/admin/login")
@@ -263,6 +284,22 @@ export function AdminSidebar({ categories: initialCategories, allCount, selected
             >
               <X className="inline h-3 w-3" />
             </button>
+          </div>
+        )}
+
+        {/* 색인 요청 버튼 */}
+        <button
+          onClick={handleIndexAll}
+          disabled={indexing}
+          className="flex items-center justify-center gap-1.5 w-full py-2 rounded-lg bg-gray-700 hover:bg-gray-800 disabled:opacity-60 text-white text-[11px] font-medium transition-colors"
+        >
+          {indexing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Search className="h-3 w-3" />}
+          {indexing ? "색인 요청 중..." : "전체 글 색인 요청"}
+        </button>
+        {indexResult && (
+          <div className="text-[11px] bg-gray-50 border border-gray-200 rounded-md px-2.5 py-1.5 text-gray-600 flex items-center justify-between">
+            <span>{indexResult}</span>
+            <button onClick={() => setIndexResult(null)}><X className="h-3 w-3 text-gray-400" /></button>
           </div>
         )}
 
