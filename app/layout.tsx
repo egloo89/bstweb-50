@@ -2,7 +2,7 @@ import type { Metadata } from "next"
 import Script from "next/script"
 import "./globals.css"
 
-const ADSENSE_ID = process.env.NEXT_PUBLIC_ADSENSE_ID // 예: ca-pub-1234567890123456
+const ADSENSE_ID = process.env.NEXT_PUBLIC_ADSENSE_ID || "ca-pub-5537150663547534"
 
 export const metadata: Metadata = {
   title: {
