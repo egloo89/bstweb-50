@@ -29,6 +29,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="google-site-verification" content="EpOOnXVfr83I7FBH-lHsl9ZBq2gk7fQ0JD4X2KEzhgs" />
         <meta name="google-site-verification" content="bJGX0xjSKVmtXjmdPAa1RAz3VjdS2PwvQ-I8YWE-DY0" />
         <meta name="naver-site-verification" content="cf2ad426ad8a84fcd758836815322c274431203b" />
+        <meta name="naver-site-verification" content="0ec0f16b5c8a7cb2b3e2f2eb5132ad955c4e4110" />
         {ADSENSE_ID && <meta name="google-adsense-account" content={ADSENSE_ID} />}
         {ADSENSE_ID && (
           <script
