@@ -268,6 +268,9 @@ export function RichEditor({ content, onChange }: RichEditorProps) {
   // 인라인(드래그&드롭) 다중 업로드 상태
   const [uploadTasks, setUploadTasks] = useState<UploadTask[]>([])
 
+  const [htmlMode, setHtmlMode] = useState(false)
+  const [htmlDraft, setHtmlDraft] = useState("")
+
   const [videoUrl, setVideoUrl] = useState("")
   const [mapSrc, setMapSrc] = useState("")
   const [mapHeight, setMapHeight] = useState("400")
@@ -616,10 +619,47 @@ export function RichEditor({ content, onChange }: RichEditorProps) {
             {icon}<span>{label}</span>
           </button>
         ))}
+
+        <Sep />
+        {/* HTML 직접 편집 토글 */}
+        <button type="button"
+          onClick={() => {
+            if (htmlMode) {
+              // HTML 모드 종료 → 에디터에 반영
+              editor.commands.setContent(htmlDraft || "")
+              onChange(editor.getHTML())
+              setHtmlMode(false)
+            } else {
+              // HTML 모드 진입 → 현재 HTML 로드
+              setHtmlDraft(editor.getHTML())
+              setHtmlMode(true)
+            }
+          }}
+          className={`h-8 flex items-center gap-1 px-2 rounded text-xs font-medium transition-colors ${
+            htmlMode ? "bg-[#4361ee] text-white" : "text-gray-600 hover:bg-gray-100"
+          }`}
+          title="HTML 직접 입력/편집">
+          <Code className="h-3.5 w-3.5" /><span>{htmlMode ? "HTML 적용" : "HTML"}</span>
+        </button>
       </div>
 
       {/* ── 에디터 본문 ── */}
-      <EditorContent editor={editor} />
+      {htmlMode ? (
+        <div className="p-3">
+          <p className="text-[11px] text-gray-500 mb-2">
+            HTML을 직접 붙여넣은 뒤 <strong>[HTML 적용]</strong> 버튼을 누르면 본문에 반영됩니다. (h2, h3, p 태그 등 그대로 인식)
+          </p>
+          <textarea
+            value={htmlDraft}
+            onChange={e => setHtmlDraft(e.target.value)}
+            spellCheck={false}
+            className="w-full min-h-[520px] font-mono text-xs leading-relaxed p-3 border border-gray-200 rounded-lg outline-none focus:border-[#4361ee] resize-y"
+            placeholder="<h2>소제목</h2>&#10;<p>본문 내용...</p>"
+          />
+        </div>
+      ) : (
+        <EditorContent editor={editor} />
+      )}
 
       {/* ── 다중 업로드 진행 상황 오버레이 ── */}
       {uploadTasks.length > 0 && (
