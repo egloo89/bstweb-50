@@ -1,4 +1,4 @@
-const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://boostwebstudio.vercel.app"
+const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://www.blackbayblog.com"
 const INDEXNOW_KEY = "bstweb50indexnow2024"
 
 const INDEXNOW_BODY = (urls: string[]) => JSON.stringify({

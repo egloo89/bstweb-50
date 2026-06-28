@@ -4,7 +4,7 @@ import { pingSearchEngines } from "@/lib/indexnow"
 import { AUTH_COOKIE } from "@/lib/auth"
 import { cookies } from "next/headers"
 
-const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://boostwebstudio.vercel.app"
+const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://www.blackbayblog.com"
 
 export async function POST() {
   const cookieStore = await cookies()

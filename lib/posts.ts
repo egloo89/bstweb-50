@@ -231,7 +231,7 @@ export async function createPost(input: CreatePostInput): Promise<Post> {
   }
 
   if (post.published) {
-    const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://boostwebstudio.vercel.app"
+    const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://www.blackbayblog.com"
     const { pingSearchEngines } = await import("./indexnow")
     pingSearchEngines([`${BASE_URL}/blog/${encodeURIComponent(post.slug)}`]).catch(() => {})
   }

@@ -3,4 +3,4 @@ Allow: /
 Disallow: /admin/
 Disallow: /admin/api/
 
-Sitemap: https://boostwebstudio.vercel.app/sitemap.xml
+Sitemap: https://www.blackbayblog.com/sitemap.xml

@@ -12,7 +12,7 @@ import {
   POST_SPECS,
 } from "@/app/admin/api/auto-post/route"
 
-const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://boostwebstudio.vercel.app"
+const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://www.blackbayblog.com"
 
 export const maxDuration = 60
 

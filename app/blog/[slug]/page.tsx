@@ -1,8 +1,6 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import { Calendar, Tag, ArrowLeft, ChevronLeft, ChevronRight, User } from "lucide-react"
-
-const AUTHOR_NAME = "블랙베이"
 import { getAllPosts, getPostBySlug } from "@/lib/posts"
 import { getCategories } from "@/lib/categories"
 import { CategorySidebar } from "@/components/CategorySidebar"
@@ -12,13 +10,15 @@ import { SiteFooter } from "@/components/SiteFooter"
 import { ViewTracker } from "@/components/ViewTracker"
 import { CommentSection } from "@/components/CommentSection"
 
+const AUTHOR_NAME = "블랙베이"
+
 export const dynamic = "force-dynamic"
 export const revalidate = 0
 
 export async function generateMetadata({ params }: { params: { slug: string } }) {
   const post = await getPostBySlug(params.slug)
   if (!post) return { title: "글을 찾을 수 없습니다" }
-  const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://boostwebstudio.vercel.app"
+  const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://www.blackbayblog.com"
   const url = `${BASE_URL}/blog/${params.slug}`
   return {
     title: post.title,
@@ -137,7 +137,7 @@ export default async function PostPage({ params }: { params: { slug: string } })
                 publisher: {
                   "@type": "Organization",
                   name: "Black Bay Blog",
-                  logo: { "@type": "ImageObject", url: `${process.env.NEXT_PUBLIC_SITE_URL || "https://bstweb-50.vercel.app"}/logo.png` },
+                  logo: { "@type": "ImageObject", url: `${process.env.NEXT_PUBLIC_SITE_URL || "https://www.blackbayblog.com"}/logo.png` },
                 },
                 keywords: post.tags.join(", "),
               }),

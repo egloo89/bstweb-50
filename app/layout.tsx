@@ -2,8 +2,10 @@ import type { Metadata } from "next"
 import "./globals.css"
 
 const ADSENSE_ID = process.env.NEXT_PUBLIC_ADSENSE_ID || "ca-pub-5537150663547534"
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://www.blackbayblog.com"
 
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: {
     default: "Black Bay Blog (블랙베이 블로그)",
     template: "%s | Black Bay Blog",
