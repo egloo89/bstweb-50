@@ -11,6 +11,7 @@ export interface AutoPostPlan {
 }
 
 const KV_PLANS_KEY = "bstweb_autopost_plans"
+const KV_PAUSED_KEY = "bstweb_autopost_paused"
 
 async function getRedis() {
   try {
@@ -63,4 +64,24 @@ export async function updatePlan(id: string, updates: Partial<AutoPostPlan>): Pr
 export async function removePlan(id: string): Promise<void> {
   const plans = await getPlans()
   await savePlans(plans.filter(p => p.id !== id))
+}
+
+export async function isPaused(): Promise<boolean> {
+  const r = await getRedis()
+  if (!r) return false
+  try {
+    return (await r.get<boolean>(KV_PAUSED_KEY)) === true
+  } catch {
+    return false
+  }
+}
+
+export async function setPaused(paused: boolean): Promise<void> {
+  const r = await getRedis()
+  if (!r) return
+  try {
+    await r.set(KV_PAUSED_KEY, paused)
+  } catch (e) {
+    console.error("[autopost-jobs] setPaused failed:", e)
+  }
 }

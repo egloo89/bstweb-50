@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { revalidatePath } from "next/cache"
-import { getPlans, updatePlan, removePlan } from "@/lib/autopost-jobs"
+import { getPlans, updatePlan, removePlan, isPaused } from "@/lib/autopost-jobs"
 import { createPost } from "@/lib/posts"
 import { readCategoryList } from "@/lib/categories"
 import { slugify } from "@/lib/utils"
@@ -20,6 +20,10 @@ export async function GET(req: Request) {
   const auth = req.headers.get("authorization")
   if (process.env.CRON_SECRET && auth !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ ok: false }, { status: 401 })
+  }
+
+  if (await isPaused()) {
+    return NextResponse.json({ ok: true, paused: true, processed: 0 })
   }
 
   const now = Date.now()

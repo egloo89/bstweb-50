@@ -35,13 +35,34 @@ export default function AboutPage() {
         </section>
 
         <section className="mb-8">
+          <h2 className="text-base font-bold text-gray-800 mb-3">운영자 소개</h2>
+          <p>
+            안녕하세요, Black Bay Blog를 운영하는 <strong>블랙베이</strong>입니다.
+            AI 도구를 직접 사용하며 일과 일상에 적용해온 경험과, 재테크·금융 정보를 꾸준히 공부하고 실천해온 내용을
+            바탕으로 글을 씁니다. 어렵게 느껴지는 주제도 직접 부딪혀 본 사람의 관점에서, 실제로 도움이 되는
+            정보만 골라 전달하려고 합니다.
+          </p>
+        </section>
+
+        <section className="mb-8">
           <h2 className="text-base font-bold text-gray-800 mb-3">블로그 운영 방향</h2>
           <ul className="list-disc pl-5 space-y-2">
             <li>독자가 읽고 나서 <strong>즉시 실행</strong>할 수 있는 구체적인 정보 제공</li>
             <li>신뢰할 수 있는 <strong>정확한 정보</strong>만을 다룸</li>
             <li>광고성·낚시성 콘텐츠 지양, <strong>독자 중심</strong>의 콘텐츠 운영</li>
             <li>꾸준한 업데이트로 <strong>최신 트렌드</strong> 반영</li>
+            <li>발행 후에도 정보가 바뀌면 <strong>지속적으로 수정·보완</strong></li>
           </ul>
+        </section>
+
+        <section className="mb-8">
+          <h2 className="text-base font-bold text-gray-800 mb-3">콘텐츠 이용 안내</h2>
+          <p>
+            본 블로그의 재테크·금융 관련 콘텐츠는 <strong>일반적인 정보 제공을 목적</strong>으로 하며,
+            특정 금융상품의 투자 권유나 자문이 아닙니다. 투자·금융 결정에 대한 최종 책임은 독자 본인에게 있으며,
+            중요한 결정 전에는 반드시 전문가와 상담하시기 바랍니다. 모든 콘텐츠는 작성 시점의 정보를 기준으로 하며,
+            정확성을 위해 노력하지만 시점에 따라 내용이 달라질 수 있습니다.
+          </p>
         </section>
 
         <section className="mb-8">

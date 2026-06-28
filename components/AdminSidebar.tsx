@@ -6,7 +6,7 @@ import { useState, useRef, useEffect, useCallback } from "react"
 import {
   Folder, Star, PlusCircle, LogOut, ExternalLink,
   Settings, Check, X, ChevronUp, ChevronDown, Trash2, FolderPlus, Pencil,
-  Sparkles, TrendingUp, Building2, Flame, Loader2, Search,
+  Sparkles, TrendingUp, Building2, Flame, Loader2, Search, Pause, Play,
 } from "lucide-react"
 import { AutoPostModal } from "./AutoPostModal"
 
@@ -81,6 +81,7 @@ export function AdminSidebar({ categories: initialCategories, allCount, selected
   const [plans, setPlans] = useState<PlanInfo[]>([])
   const [indexing, setIndexing] = useState(false)
   const [indexResult, setIndexResult] = useState<string | null>(null)
+  const [autoPaused, setAutoPaused] = useState(false)
   const newInputRef = useRef<HTMLInputElement>(null)
 
   const fetchPlans = useCallback(async () => {
@@ -89,9 +90,24 @@ export function AdminSidebar({ categories: initialCategories, allCount, selected
       const data = await res.json()
       if (data.ok && Array.isArray(data.plans)) {
         setPlans(data.plans)
+        setAutoPaused(data.paused === true)
       }
     } catch {}
   }, [])
+
+  async function togglePause() {
+    const next = !autoPaused
+    setAutoPaused(next)
+    try {
+      await fetch("/admin/api/auto-post/jobs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paused: next }),
+      })
+    } catch {
+      setAutoPaused(!next)
+    }
+  }
 
   useEffect(() => {
     fetchPlans()
@@ -301,6 +317,24 @@ export function AdminSidebar({ categories: initialCategories, allCount, selected
             <span>{indexResult}</span>
             <button onClick={() => setIndexResult(null)}><X className="h-3 w-3 text-gray-400" /></button>
           </div>
+        )}
+
+        {/* 자동포스팅 일시중지 토글 */}
+        <button
+          onClick={togglePause}
+          className={`flex items-center justify-center gap-1.5 w-full py-2 rounded-lg text-[11px] font-medium transition-colors ${
+            autoPaused
+              ? "bg-amber-100 text-amber-700 hover:bg-amber-200"
+              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+          }`}
+        >
+          {autoPaused ? <Play className="h-3 w-3" /> : <Pause className="h-3 w-3" />}
+          {autoPaused ? "자동포스팅 재개" : "자동포스팅 일시중지"}
+        </button>
+        {autoPaused && (
+          <p className="text-[10px] text-amber-600 text-center">
+            ⏸ 예약 발행이 멈춤 상태입니다 (심사 기간 권장)
+          </p>
         )}
 
         {/* 예약 포스팅 현황 */}

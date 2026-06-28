@@ -1,6 +1,8 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { Calendar, Tag, ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react"
+import { Calendar, Tag, ArrowLeft, ChevronLeft, ChevronRight, User } from "lucide-react"
+
+const AUTHOR_NAME = "블랙베이"
 import { getAllPosts, getPostBySlug } from "@/lib/posts"
 import { getCategories } from "@/lib/categories"
 import { CategorySidebar } from "@/components/CategorySidebar"
@@ -101,6 +103,7 @@ export default async function PostPage({ params }: { params: { slug: string } })
             <h1 className="text-xl md:text-2xl font-bold text-gray-900 leading-tight mb-3">{post.title}</h1>
             {post.excerpt && <p className="text-sm text-gray-500 mb-3">{post.excerpt}</p>}
             <div className="flex flex-wrap items-center gap-3 text-xs text-gray-400">
+              <span className="flex items-center gap-1"><User className="h-3.5 w-3.5" />{AUTHOR_NAME}</span>
               <span className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5" />{formatDate(post.date)}</span>
               <span>조회 {post.views ?? 0}</span>
               {post.tags.length > 0 && (
@@ -130,7 +133,7 @@ export default async function PostPage({ params }: { params: { slug: string } })
                 image: post.thumbnail || undefined,
                 datePublished: post.date,
                 dateModified: post.date,
-                author: { "@type": "Person", name: "Black Bay Blog" },
+                author: { "@type": "Person", name: AUTHOR_NAME },
                 publisher: {
                   "@type": "Organization",
                   name: "Black Bay Blog",
