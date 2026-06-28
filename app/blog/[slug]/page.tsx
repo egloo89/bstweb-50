@@ -12,6 +12,13 @@ import { CommentSection } from "@/components/CommentSection"
 
 const AUTHOR_NAME = "블랙베이"
 
+// 금융 관련 카테고리 — 면책조항 표시 대상
+const FINANCE_CATEGORIES = ["재테크", "대출/국가제도", "대출", "금융", "투자"]
+
+function isFinanceCategory(category: string) {
+  return FINANCE_CATEGORIES.some(c => category.includes(c))
+}
+
 export const dynamic = "force-dynamic"
 export const revalidate = 0
 
@@ -152,6 +159,15 @@ export default async function PostPage({ params }: { params: { slug: string } })
               : <LegacyContent content={post.content} />
             }
           </article>
+
+          {isFinanceCategory(post.category) && (
+            <div className="mt-8 p-4 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800 leading-relaxed">
+              <strong className="block mb-1">⚠️ 투자 유의사항</strong>
+              본 글은 일반적인 정보 제공을 목적으로 작성되었으며, 특정 금융상품에 대한 투자 권유나 자문이 아닙니다.
+              모든 투자·금융 결정의 최종 책임은 본인에게 있으며, 중요한 결정 전에는 반드시 관련 전문가와 상담하시기 바랍니다.
+              본문의 수치와 정보는 작성 시점 기준이며 시점에 따라 달라질 수 있습니다.
+            </div>
+          )}
 
           {post.tags.length > 0 && (
             <div className="mt-8 pt-5 border-t border-gray-100 flex flex-wrap gap-2">
