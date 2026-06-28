@@ -1,5 +1,4 @@
 import type { Metadata } from "next"
-import Script from "next/script"
 import "./globals.css"
 
 const ADSENSE_ID = process.env.NEXT_PUBLIC_ADSENSE_ID || "ca-pub-5537150663547534"
@@ -28,6 +27,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="google-site-verification" content="EpOOnXVfr83I7FBH-lHsl9ZBq2gk7fQ0JD4X2KEzhgs" />
         <meta name="naver-site-verification" content="cf2ad426ad8a84fcd758836815322c274431203b" />
         {ADSENSE_ID && <meta name="google-adsense-account" content={ADSENSE_ID} />}
+        {ADSENSE_ID && (
+          <script
+            async
+            src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_ID}`}
+            crossOrigin="anonymous"
+          />
+        )}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
@@ -36,14 +42,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body>
-        {ADSENSE_ID && (
-          <Script
-            async
-            src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_ID}`}
-            crossOrigin="anonymous"
-            strategy="afterInteractive"
-          />
-        )}
         {children}
       </body>
     </html>
