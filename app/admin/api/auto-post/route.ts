@@ -74,10 +74,10 @@ const FLASH_CANDIDATES = [
 ]
 
 /** Google Models API로 현재 실제 사용 가능한 Flash 모델을 찾아 반환 */
-async function findBestFlashModel(apiKey: string): Promise<string> {
+async function findBestFlashModel(apiKey: string, apiVersion: "v1" | "v1beta" = "v1"): Promise<string> {
   try {
     const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models?key=${apiKey}&pageSize=100`
+      `https://generativelanguage.googleapis.com/${apiVersion}/models?key=${apiKey}&pageSize=100`
     )
     if (res.ok) {
       const data = await res.json()
@@ -92,6 +92,9 @@ async function findBestFlashModel(apiKey: string): Promise<string> {
         const match = available.find((n) => n.startsWith(candidate))
         if (match) return match
       }
+      // Flash 후보가 없으면 사용 가능한 아무 flash 모델
+      const anyFlash = available.find((n) => n.includes("flash"))
+      if (anyFlash) return anyFlash
     }
   } catch {}
   return FLASH_CANDIDATES[0]
@@ -121,7 +124,8 @@ async function generateWithV1Fetch(apiKey: string, spec: PostSpec, modelName: st
 /** Google v1beta REST API - Google Search grounding 포함 (이슈 전용) */
 async function generateIssuePost(keywords: string[]): Promise<ParsedPost> {
   const apiKey = process.env.GEMINI_API_KEY!
-  const model = "gemini-2.0-flash"
+  // grounding(검색)은 v1beta에서 지원 — 실제 사용 가능한 모델을 동적으로 탐지
+  const model = await findBestFlashModel(apiKey, "v1beta")
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`
 
   const keywordStr = keywords.join(", ")
@@ -162,27 +166,34 @@ async function generateIssuePost(keywords: string[]): Promise<ParsedPost> {
 - content 값 안에 큰따옴표(") 사용 금지 — &quot; 또는 작은따옴표로 대체
 - 줄바꿈 없이 content 전체를 한 줄 문자열로 출력`
 
-  const body = {
-    tools: [{ googleSearch: {} }],
-    contents: [{ parts: [{ text: prompt }] }],
-    generationConfig: { maxOutputTokens: 8192 },
+  async function callGemini(withSearch: boolean) {
+    const body = {
+      ...(withSearch ? { tools: [{ googleSearch: {} }] } : {}),
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: { maxOutputTokens: 8192 },
+    }
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    })
+    if (!res.ok) {
+      const errText = await res.text()
+      throw new Error(`이슈 포스팅 생성 오류 ${res.status}: ${errText}`)
+    }
+    const data = await res.json()
+    const text: string = data.candidates?.[0]?.content?.parts?.[0]?.text
+    if (!text) throw new Error("이슈 포스팅 응답에 텍스트가 없습니다.")
+    return parseResponse(text.trim())
   }
 
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  })
-
-  if (!res.ok) {
-    const errText = await res.text()
-    throw new Error(`이슈 포스팅 생성 오류 ${res.status}: ${errText}`)
+  // 1차: 검색(grounding) 포함 시도 → 실패하면 검색 없이 재시도
+  try {
+    return await callGemini(true)
+  } catch (e) {
+    console.error("[issue] grounding 실패, 검색 없이 재시도:", (e as Error).message)
+    return await callGemini(false)
   }
-
-  const data = await res.json()
-  const text: string = data.candidates?.[0]?.content?.parts?.[0]?.text
-  if (!text) throw new Error("이슈 포스팅 응답에 텍스트가 없습니다.")
-  return parseResponse(text.trim())
 }
 
 async function generatePost(spec: PostSpec, keywords?: string[]): Promise<ParsedPost> {
