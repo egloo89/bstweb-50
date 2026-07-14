@@ -82,6 +82,8 @@ export function AdminSidebar({ categories: initialCategories, allCount, selected
   const [indexing, setIndexing] = useState(false)
   const [indexResult, setIndexResult] = useState<string | null>(null)
   const [autoPaused, setAutoPaused] = useState(false)
+  const [humanizing, setHumanizing] = useState(false)
+  const [humanizeProgress, setHumanizeProgress] = useState<string | null>(null)
   const newInputRef = useRef<HTMLInputElement>(null)
 
   const fetchPlans = useCallback(async () => {
@@ -94,6 +96,36 @@ export function AdminSidebar({ categories: initialCategories, allCount, selected
       }
     } catch {}
   }, [])
+
+  async function handleHumanize() {
+    if (humanizing) return
+    if (!confirm("모든 발행 글을 AI가 자연스러운 사람 문체로 다시 씁니다.\n(기존 내용은 교체되며, 글 개수에 따라 몇 분 걸릴 수 있습니다)\n\n진행할까요?")) return
+    setHumanizing(true)
+    setHumanizeProgress("시작 중...")
+    try {
+      let guard = 0
+      while (guard < 100) {
+        guard++
+        const res = await fetch("/admin/api/humanize", { method: "POST" })
+        const data = await res.json()
+        if (!data.ok) {
+          setHumanizeProgress(`❌ ${data.error || "오류 발생"}`)
+          break
+        }
+        const doneCount = (data.total ?? 0) - (data.remaining ?? 0)
+        setHumanizeProgress(`✍️ ${doneCount}/${data.total}개 완료...`)
+        if (data.done || data.remaining === 0) {
+          setHumanizeProgress(`✅ 전체 ${data.total}개 글 개선 완료!`)
+          router.refresh()
+          break
+        }
+      }
+    } catch {
+      setHumanizeProgress("❌ 네트워크 오류 — 다시 시도해주세요")
+    } finally {
+      setHumanizing(false)
+    }
+  }
 
   async function togglePause() {
     const next = !autoPaused
@@ -316,6 +348,24 @@ export function AdminSidebar({ categories: initialCategories, allCount, selected
           <div className="text-[11px] bg-gray-50 border border-gray-200 rounded-md px-2.5 py-1.5 text-gray-600 flex items-center justify-between">
             <span>{indexResult}</span>
             <button onClick={() => setIndexResult(null)}><X className="h-3 w-3 text-gray-400" /></button>
+          </div>
+        )}
+
+        {/* 글 품질 개선(사람화) 버튼 */}
+        <button
+          onClick={handleHumanize}
+          disabled={humanizing}
+          className="flex items-center justify-center gap-1.5 w-full py-2 rounded-lg bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 disabled:opacity-60 text-white text-[11px] font-medium transition-colors"
+        >
+          {humanizing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+          {humanizing ? "개선 중..." : "전체 글 사람화(품질 개선)"}
+        </button>
+        {humanizeProgress && (
+          <div className="text-[11px] bg-rose-50 border border-rose-200 rounded-md px-2.5 py-1.5 text-rose-700 flex items-center justify-between">
+            <span>{humanizeProgress}</span>
+            {!humanizing && (
+              <button onClick={() => setHumanizeProgress(null)}><X className="h-3 w-3 text-rose-400" /></button>
+            )}
           </div>
         )}
 
