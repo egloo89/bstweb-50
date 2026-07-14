@@ -140,8 +140,8 @@ export async function POST() {
 
   const model = await findModel(apiKey)
 
-  // 타임아웃 방지: 한 번에 2개씩만 처리 (프론트에서 반복 호출)
-  const batch = pending.slice(0, 2)
+  // 타임아웃 방지: 한 번에 1개씩만 처리 (프론트에서 반복 호출)
+  const batch = pending.slice(0, 1)
   const results: Array<{ slug: string; title: string; ok: boolean }> = []
 
   for (const post of batch) {

@@ -102,26 +102,37 @@ export function AdminSidebar({ categories: initialCategories, allCount, selected
     if (!confirm("모든 발행 글을 AI가 자연스러운 사람 문체로 다시 씁니다.\n(기존 내용은 교체되며, 글 개수에 따라 몇 분 걸릴 수 있습니다)\n\n진행할까요?")) return
     setHumanizing(true)
     setHumanizeProgress("시작 중...")
+    let consecutiveErrors = 0
     try {
       let guard = 0
-      while (guard < 100) {
+      while (guard < 500) {
         guard++
-        const res = await fetch("/admin/api/humanize", { method: "POST" })
-        const data = await res.json()
-        if (!data.ok) {
-          setHumanizeProgress(`❌ ${data.error || "오류 발생"}`)
-          break
-        }
-        const doneCount = (data.total ?? 0) - (data.remaining ?? 0)
-        setHumanizeProgress(`✍️ ${doneCount}/${data.total}개 완료...`)
-        if (data.done || data.remaining === 0) {
-          setHumanizeProgress(`✅ 전체 ${data.total}개 글 개선 완료!`)
-          router.refresh()
-          break
+        try {
+          const res = await fetch("/admin/api/humanize", { method: "POST" })
+          const data = await res.json()
+          if (!data.ok) {
+            setHumanizeProgress(`❌ ${data.error || "오류 발생"}`)
+            break
+          }
+          consecutiveErrors = 0
+          const doneCount = (data.total ?? 0) - (data.remaining ?? 0)
+          setHumanizeProgress(`✍️ ${doneCount}/${data.total}개 완료...`)
+          if (data.done || data.remaining === 0) {
+            setHumanizeProgress(`✅ 전체 ${data.total}개 글 개선 완료!`)
+            router.refresh()
+            break
+          }
+        } catch {
+          // 타임아웃 등 일시적 실패 — 몇 번은 재시도 (서버는 1개씩 처리 후 저장하므로 이어서 진행됨)
+          consecutiveErrors++
+          if (consecutiveErrors >= 5) {
+            setHumanizeProgress("⚠️ 일시 중단됨 — 버튼을 다시 눌러 이어서 진행하세요")
+            break
+          }
+          setHumanizeProgress(`⏳ 재시도 중... (${consecutiveErrors}/5)`)
+          await new Promise(r => setTimeout(r, 2000))
         }
       }
-    } catch {
-      setHumanizeProgress("❌ 네트워크 오류 — 다시 시도해주세요")
     } finally {
       setHumanizing(false)
     }
